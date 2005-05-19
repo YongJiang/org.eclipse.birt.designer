@@ -52,7 +52,7 @@ public abstract class DefaultExtendedDataSetWizard extends
 	public DataSetHandle createDataSet( ReportDesignHandle handle )
 	{
         String modelExtension = null;
-        String dataSetType = getConfigurationElement( ).getAttribute( "name" ); //$NON-NLS-1$
+        String dataSetType = getConfigurationElement( ).getAttribute( "id" ); //$NON-NLS-1$
         if(Utility.doesDataSetModelExtensionExist(dataSetType))
         {
             modelExtension = dataSetType; 
