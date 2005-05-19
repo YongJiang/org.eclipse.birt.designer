@@ -26,7 +26,7 @@ import org.eclipse.core.runtime.Platform;
 /**
  * TODO: Please document
  * 
- * @version $Revision: 1.4 $ $Date: 2005/03/17 20:39:18 $
+ * @version $Revision: 1.5 $ $Date: 2005/04/19 01:14:21 $
  */
 public final class Utility
 {
@@ -115,7 +115,8 @@ public final class Utility
         
         return finalName;
     }
-    
+
+/*  gxue- removed for new ODA extension point design
     public static boolean doesDataSourceModelExtensionExist(String extensionName)
     {
         IConfigurationElement[] elements = Platform.getExtensionRegistry( )
@@ -151,5 +152,6 @@ public final class Utility
         
         return false;
     }
+*/
     
 }
