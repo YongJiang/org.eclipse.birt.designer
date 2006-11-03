@@ -12,22 +12,24 @@
 package org.eclipse.birt.report.designer.internal.ui.dialogs;
 
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.birt.report.designer.core.model.SessionHandleAdapter;
-import org.eclipse.birt.report.designer.internal.ui.swt.custom.IBaseTableAreaModifier;
-import org.eclipse.birt.report.designer.internal.ui.swt.custom.TableArea;
+import org.eclipse.birt.report.designer.internal.ui.swt.custom.CCombo;
 import org.eclipse.birt.report.designer.internal.ui.util.ExceptionHandler;
+import org.eclipse.birt.report.designer.internal.ui.util.UIUtil;
 import org.eclipse.birt.report.designer.internal.ui.util.WidgetUtil;
+import org.eclipse.birt.report.designer.internal.ui.views.dialogs.provider.DataSetColumnBindingsFormHandleProvider;
 import org.eclipse.birt.report.designer.nls.Messages;
-import org.eclipse.birt.report.designer.ui.dialogs.ExpressionProvider;
 import org.eclipse.birt.report.designer.ui.views.attributes.providers.ChoiceSetFactory;
 import org.eclipse.birt.report.designer.util.DEUtil;
 import org.eclipse.birt.report.model.api.CommandStack;
 import org.eclipse.birt.report.model.api.DataSetHandle;
-import org.eclipse.birt.report.model.api.DataSetParameterHandle;
 import org.eclipse.birt.report.model.api.DesignElementHandle;
+import org.eclipse.birt.report.model.api.ModuleHandle;
 import org.eclipse.birt.report.model.api.ParamBindingHandle;
 import org.eclipse.birt.report.model.api.PropertyHandle;
 import org.eclipse.birt.report.model.api.ReportItemHandle;
@@ -37,48 +39,46 @@ import org.eclipse.birt.report.model.api.activity.SemanticException;
 import org.eclipse.birt.report.model.api.command.ContentEvent;
 import org.eclipse.birt.report.model.api.command.PropertyEvent;
 import org.eclipse.birt.report.model.api.core.Listener;
-import org.eclipse.birt.report.model.api.elements.structures.DataSetParameter;
+import org.eclipse.birt.report.model.api.elements.structures.ComputedColumn;
 import org.eclipse.birt.report.model.api.elements.structures.ParamBinding;
 import org.eclipse.birt.report.model.api.metadata.IChoiceSet;
-import org.eclipse.birt.report.model.api.metadata.PropertyValueException;
 import org.eclipse.birt.report.model.api.util.StringUtil;
 import org.eclipse.birt.report.model.elements.DataSet;
-import org.eclipse.jface.dialogs.Dialog;
 import org.eclipse.jface.dialogs.MessageDialog;
-import org.eclipse.jface.viewers.IStructuredContentProvider;
-import org.eclipse.jface.viewers.ITableLabelProvider;
-import org.eclipse.jface.viewers.LabelProvider;
-import org.eclipse.jface.viewers.TableViewer;
-import org.eclipse.jface.viewers.Viewer;
+import org.eclipse.jface.window.Window;
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.events.SelectionAdapter;
+import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.layout.FormAttachment;
 import org.eclipse.swt.layout.FormData;
 import org.eclipse.swt.layout.FormLayout;
+import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Label;
-import org.eclipse.swt.widgets.Table;
-import org.eclipse.swt.widgets.TableColumn;
+import org.eclipse.ui.PlatformUI;
 
 /**
  * The Binding attribute page of DE element. Note: Binding Not support
  * multi-selection.
  */
-public class ParameterBindingPage extends Composite implements Listener
+public class BindingPage extends Composite implements Listener
 {
 
-	private Label dataSetName;
-
+	protected List input = new ArrayList( );
 	/**
 	 * The Binding properties table.
 	 */
-	private Table table;
+	// private Table table;
+	/**
+	 * The DataSet choose control.
+	 */
+	private CCombo combo;
 
+	private Button bindingButton;
 	/**
 	 * The TableViewer of the table widget.
 	 */
-	private TableViewer tableViewer;
-
+	// private TableViewer tableViewer;
 	/**
 	 * The column list.
 	 */
@@ -92,15 +92,18 @@ public class ParameterBindingPage extends Composite implements Listener
 	private transient boolean enableAutoCommit = true;
 
 	private static final IChoiceSet DATA_TYPE_CHOICE_SET = DEUtil.getMetaDataDictionary( )
-			.getStructure( DataSetParameter.STRUCT_NAME )
-			.getMember( DataSetParameter.DATA_TYPE_MEMBER )
+			.getStructure( ComputedColumn.COMPUTED_COLUMN_STRUCT )
+			.getMember( ComputedColumn.DATA_TYPE_MEMBER )
 			.getAllowedChoices( );
 
 	private static final String DEFAULT_VALUE_LABEL = Messages.getString( "label.defaultValue" ); //$NON-NLS-1$
 
 	private static final String DATA_SET_LABEL = Messages.getString( "Element.ReportItem.dataSet" ); //$NON-NLS-1$
 
-	protected List input = new ArrayList( );
+	private static final String BUTTON_BINDING = Messages.getString( "parameterBinding.title" ); //$NON-NLS-1$
+	private DataSetColumnBindingsFormPage columnBindingsFormPage;
+
+	private ModuleHandle model;
 
 	/**
 	 * @param parent
@@ -109,10 +112,10 @@ public class ParameterBindingPage extends Composite implements Listener
 	 * @param style
 	 *            The style of widget to construct
 	 */
-	public ParameterBindingPage( Composite parent, int style )
+	public BindingPage( Composite parent, int style )
 	{
 		super( parent, style );
-		buildUI();
+		buildUI( );
 	}
 
 	/*
@@ -134,49 +137,179 @@ public class ParameterBindingPage extends Composite implements Listener
 		Label title = new Label( this, SWT.NONE );
 		title.setText( DATA_SET_LABEL );
 
-		dataSetName = new Label( this, SWT.NONE );
+		combo = new CCombo( this, SWT.READ_ONLY | SWT.BORDER );
+		combo.setBackground( PlatformUI.getWorkbench( )
+				.getDisplay( )
+				.getSystemColor( SWT.COLOR_LIST_BACKGROUND ) );
+		combo.addSelectionListener( new SelectionAdapter( ) {
+
+			public void widgetSelected( SelectionEvent event )
+			{
+				String value = combo.getText( );
+
+				if ( value.equals( NONE ) )
+				{
+					value = null;
+				}
+
+				int ret = 0;
+
+				// If current data set name is None and no column binding
+				// existing, pop up dilog doesn't need.
+				if ( !NONE.equals( getDataSetName( ) )
+						|| getReportItemHandle( ).getColumnBindings( )
+								.iterator( )
+								.hasNext( ) )
+				{
+					MessageDialog prefDialog = new MessageDialog( UIUtil.getDefaultShell( ),
+							Messages.getString( "dataBinding.title.changeDataSet" ),//$NON-NLS-1$
+							null,
+							Messages.getString( "dataBinding.message.changeDataSet" ),//$NON-NLS-1$
+							MessageDialog.INFORMATION,
+							new String[]{
+									Messages.getString( "AttributeView.dialg.Message.Yes" ),//$NON-NLS-1$
+									Messages.getString( "AttributeView.dialg.Message.No" ),//$NON-NLS-1$
+									Messages.getString( "AttributeView.dialg.Message.Cancel" )}, 0 );//$NON-NLS-1$
+
+					ret = prefDialog.open( );
+				}
+
+				switch ( ret )
+				{
+					// Clear binding info
+					case 0 :
+						resetDataSetReference( value, true );
+						break;
+					// Doesn't clear binding info
+					case 1 :
+						resetDataSetReference( value, false );
+						break;
+					// Cancel.
+					case 2 :
+						combo.setText( getDataSetName( ) );
+				}
+			}
+
+			private void resetDataSetReference( String value,
+					boolean clearHistory )
+			{
+				try
+				{
+					startTrans( "" ); //$NON-NLS-1$
+					DataSetHandle dataSet = null;
+					if ( value != null )
+					{
+						dataSet = SessionHandleAdapter.getInstance( )
+								.getReportDesignHandle( )
+								.findDataSet( value );
+					}
+					getReportItemHandle( ).setDataSet( dataSet );
+					if ( clearHistory )
+					{
+						getReportItemHandle( ).getColumnBindings( )
+								.clearValue( );
+						getReportItemHandle( ).getPropertyHandle( ReportItemHandle.PARAM_BINDINGS_PROP )
+								.clearValue( );
+					}
+					columnBindingsFormPage.generateAllBindingColumns( );
+					commit( );
+				}
+				catch ( SemanticException e )
+				{
+					rollback( );
+					ExceptionHandler.handle( e );
+				}
+
+			}
+		} );
 		data = new FormData( );
 		data.left = new FormAttachment( title, 0, SWT.RIGHT );
 		data.top = new FormAttachment( title, 0, SWT.CENTER );
 		data.right = new FormAttachment( 50 );
-		dataSetName.setLayoutData( data );
+		combo.setLayoutData( data );
+
+		bindingButton = new Button( this, SWT.PUSH );
+		bindingButton.setText( BUTTON_BINDING );
+		bindingButton.addSelectionListener( new SelectionAdapter( ) {
+
+			public void widgetSelected( SelectionEvent e )
+			{
+				ParameterBindingDialog dialog = new ParameterBindingDialog( UIUtil.getDefaultShell( ),
+						( (DesignElementHandle) input.get( 0 ) ) );
+				startTrans( "" ); //$NON-NLS-1$
+				if ( dialog.open( ) == Window.OK )
+				{
+					commit( );
+				}
+				else
+				{
+					rollback( );
+				}
+			}
+		} );
+		data = new FormData( );
+		data.left = new FormAttachment( combo, 0, SWT.RIGHT );
+		data.top = new FormAttachment( title, 0, SWT.CENTER );
+		// data.right = new FormAttachment( 50 );
+		bindingButton.setLayoutData( data );
 
 		// create table and tableViewer
-		TableArea tableArea = new TableArea( this, SWT.SINGLE
-				| SWT.BORDER
-				| SWT.H_SCROLL
-				| SWT.V_SCROLL
-				| SWT.FULL_SELECTION, new IBaseTableAreaModifier( ) {
-
-			public boolean editItem( Object element )
-			{
-				return doEdit( element );
-			}
-
-		} );
-		table = tableArea.getTable( );
-		for ( int i = 0; i < columnNames.length; i++ )
+		// table = new Table( this, SWT.SINGLE
+		// | SWT.BORDER
+		// | SWT.H_SCROLL
+		// | SWT.V_SCROLL
+		// | SWT.FULL_SELECTION );
+		// table.setLinesVisible( true );
+		// table.setHeaderVisible( true );
+		// for ( int i = 0; i < columnNames.length; i++ )
+		// {
+		// TableColumn column = new TableColumn( table, SWT.LEFT );
+		// column.setText( columnNames[i] );
+		// column.setWidth( 200 );
+		// }
+		//
+		// // layout table
+		// data = new FormData( );
+		// data.top = new FormAttachment( combo, 0, SWT.BOTTOM );
+		// data.left = new FormAttachment( title, 0, SWT.LEFT );
+		// data.right = new FormAttachment( 100 );
+		// data.bottom = new FormAttachment( 30 );
+		// table.setLayoutData( data );
+		//
+		// createTableViewer( );
+		try
 		{
-			TableColumn column = new TableColumn( table, SWT.LEFT );
-			column.setText( columnNames[i] );
-			column.setWidth( 200 );
+			columnBindingsFormPage = new DataSetColumnBindingsFormPage( this,
+					new DataSetColumnBindingsFormHandleProvider( ) );
 		}
-
-		// layout table
+		catch ( Exception e )
+		{
+			e.printStackTrace( );
+		}
 		data = new FormData( );
-		data.top = new FormAttachment( title, 0, SWT.BOTTOM );
+		data.top = new FormAttachment( combo, 0, SWT.BOTTOM );
 		data.left = new FormAttachment( title, 0, SWT.LEFT );
 		data.right = new FormAttachment( 100 );
 		data.bottom = new FormAttachment( 100 );
-		tableArea.setLayoutData( data );
-
-		tableViewer = tableArea.getTableViewer( );
-		tableViewer.setUseHashlookup( true );
-		tableViewer.setColumnProperties( columnNames );
-		tableViewer.setContentProvider( new BindingContentProvider( ) );
-		tableViewer.setLabelProvider( new BindingLabelProvider( ) );
+		columnBindingsFormPage.setLayoutData( data );
 	}
 
+	/**
+	 * Creates the TableViewer and set all kinds of processors.
+	 */
+	// private void createTableViewer( )
+	// {
+	// tableViewer = new TableViewer( table );
+	// tableViewer.setUseHashlookup( true );
+	// tableViewer.setColumnProperties( columnNames );
+	// expressionCellEditor = new ExpressionDialogCellEditor( table );
+	// tableViewer.setCellEditors( new CellEditor[]{
+	// null, null, expressionCellEditor
+	// } );
+	// tableViewer.setContentProvider( new BindingContentProvider( ) );
+	// tableViewer.setLabelProvider( new BindingLabelProvider( ) );
+	// tableViewer.setCellModifier( new BindingCellModifier( ) );
+	// }
 	/*
 	 * (non-Javadoc)
 	 * 
@@ -184,13 +317,38 @@ public class ParameterBindingPage extends Composite implements Listener
 	 */
 	protected void refreshValues( )
 	{
-		if ( input.size( ) != 1 || this.isDisposed( ))
+		// Binding Not support multi-selection.
+		if ( input.size( ) != 1 )
 		{
+			combo.setEnabled( false );
+			combo.deselectAll( );
+			// table.removeAll( );
+			// table.setEnabled( false );
 			return;
 		}
-		dataSetName.setText( ( (ReportItemHandle) input.get( 0 ) ).getDataSet( )
-				.getName( ) );
-		tableViewer.refresh( );
+		combo.setEnabled( true );
+		// table.setEnabled( true );
+
+		String selectedDataSetName = combo.getText( );
+		String[] oldList = combo.getItems( );
+		String[] dataSets = ChoiceSetFactory.getDataSets( );
+		String[] newList = new String[dataSets.length + 1];
+		newList[0] = NONE;
+		System.arraycopy( dataSets, 0, newList, 1, dataSets.length );
+		if ( !Arrays.asList( oldList ).equals( Arrays.asList( newList ) ) )
+		{
+			combo.setItems( newList );
+			combo.setText( selectedDataSetName );
+		}
+		String dataSetName = getDataSetName( );
+		if ( !dataSetName.equals( selectedDataSetName ) )
+		{
+			combo.deselectAll( );
+			combo.setText( dataSetName );
+		}
+		bindingButton.setEnabled( !dataSetName.equals( NONE ) );
+		// reconstructTable( );
+		columnBindingsFormPage.setInput( input );
 	}
 
 	private ReportItemHandle getReportItemHandle( )
@@ -213,6 +371,17 @@ public class ParameterBindingPage extends Composite implements Listener
 		return dataSetName;
 	}
 
+	/**
+	 * reconstruct the content of the table to show the last parameters in
+	 * DataSet.
+	 */
+	// private void reconstructTable( )
+	// {
+	// ReportItemHandle reportItemHandle = (ReportItemHandle) input.get( 0 );
+	// tableViewer.refresh( );
+	// expressionCellEditor.setDataSetList( DEUtil.getDataSetList(
+	// reportItemHandle ) );
+	// }
 	/**
 	 * Creates a new ParamBinding Handle.
 	 * 
@@ -248,6 +417,7 @@ public class ParameterBindingPage extends Composite implements Listener
 	 */
 	public void elementChanged( DesignElementHandle focus, NotificationEvent ev )
 	{
+		if(this.isDisposed( ))return;
 		if ( ev.getEventType( ) == NotificationEvent.PROPERTY_EVENT )
 		{
 			PropertyEvent event = (PropertyEvent) ev;
@@ -270,134 +440,6 @@ public class ParameterBindingPage extends Composite implements Listener
 					refreshValues( );
 				}
 			}
-		}
-	}
-
-	private class BindingLabelProvider extends LabelProvider implements
-			ITableLabelProvider
-	{
-
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see org.eclipse.jface.viewers.ITableLabelProvider#getColumnImage(java.lang.Object,
-		 *      int)
-		 */
-
-		public Image getColumnImage( Object element, int columnIndex )
-		{
-			return null;
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see org.eclipse.jface.viewers.ITableLabelProvider#getColumnText(java.lang.Object,
-		 *      int)
-		 */
-		public String getColumnText( Object element, int columnIndex )
-		{
-			String text = ""; //$NON-NLS-1$
-			DataSetParameterHandle parameter = (DataSetParameterHandle) ( (Object[]) element )[0];
-			ParamBindingHandle bindingParameter = (ParamBindingHandle) ( (Object[]) element )[1];
-			switch ( columnIndex )
-			{
-				case 0 :
-					if ( parameter.getName( ) != null )
-					{
-						text = parameter.getName( );
-					}
-					break;
-				case 1 :
-					if ( parameter.getParameterDataType( ) != null )
-					{
-						text = ChoiceSetFactory.getDisplayNameFromChoiceSet( parameter.getParameterDataType( ),
-								DATA_TYPE_CHOICE_SET );
-					}
-					break;
-				case 2 :
-					if ( bindingParameter != null
-							&& bindingParameter.getExpression( ) != null )
-					{
-						text = bindingParameter.getExpression( );
-					}
-					else if ( parameter.getDefaultValue( ) != null )
-					{
-						text = parameter.getDefaultValue( ) + " " //$NON-NLS-1$
-								+ DEFAULT_VALUE_LABEL;
-					}
-					break;
-			}
-			return text;
-		}
-	}
-
-	private class BindingContentProvider implements IStructuredContentProvider
-	{
-
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see org.eclipse.jface.viewers.IStructuredContentProvider#getElements(java.lang.Object)
-		 */
-		public Object[] getElements( Object inputElement )
-		{
-			if ( inputElement == null )
-			{
-				return new Object[0];
-			}
-			ReportItemHandle inputHandle = (ReportItemHandle) inputElement;
-			DataSetHandle dataHandle = inputHandle.getDataSet( );
-			if ( dataHandle == null )
-			{
-				return new Object[0];
-			}
-			List bindingParametersList = new ArrayList( );
-			List bindingParametersNameList = new ArrayList( );
-			List resultList = new ArrayList( );
-			for ( Iterator iterator = inputHandle.paramBindingsIterator( ); iterator.hasNext( ); )
-			{
-				ParamBindingHandle handle = (ParamBindingHandle) iterator.next( );
-				bindingParametersList.add( handle );
-				bindingParametersNameList.add( handle.getParamName( ) );
-			}
-			for ( Iterator iterator = dataHandle.parametersIterator( ); iterator.hasNext( ); )
-			{
-				DataSetParameterHandle handle = (DataSetParameterHandle) iterator.next( );
-				if ( handle.isInput( ) )
-				{
-					Object[] result = new Object[]{
-							handle, null
-					};
-					int index = bindingParametersNameList.indexOf( handle.getName( ) );
-					if ( index != -1 )
-					{
-						result[1] = bindingParametersList.get( index );
-					}
-					resultList.add( result );
-				}
-			}
-			return resultList.toArray( );
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see org.eclipse.jface.viewers.IContentProvider#dispose()
-		 */
-		public void dispose( )
-		{
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see org.eclipse.jface.viewers.IContentProvider#inputChanged(org.eclipse.jface.viewers.Viewer,
-		 *      java.lang.Object, java.lang.Object)
-		 */
-		public void inputChanged( Viewer viewer, Object oldInput,
-				Object newInput )
-		{
 		}
 	}
 
@@ -469,15 +511,16 @@ public class ParameterBindingPage extends Composite implements Listener
 
 	private void enableUI( boolean enabled )
 	{
-		if ( tableViewer != null )
-		{
-			table.setEnabled( enabled );
-		}
+		// if ( tableViewer != null )
+		// {
+		// combo.setEnabled( enabled );
+		// table.setEnabled( enabled );
+		// }
 	}
 
 	public void setInput( List elements )
 	{
-		deRegisterListeners( );
+		
 		if ( elements.size( ) != 1 )
 		{
 			enableUI( false );
@@ -488,7 +531,10 @@ public class ParameterBindingPage extends Composite implements Listener
 		input = elements;
 		refreshValues( );
 		registerListeners( );
-		tableViewer.setInput( elements.get( 0 ) );
+		columnBindingsFormPage.setInput( elements );
+		this.model = SessionHandleAdapter.getInstance( )
+				.getReportDesignHandle( );
+
 	}
 
 	protected void registerListeners( )
@@ -522,68 +568,15 @@ public class ParameterBindingPage extends Composite implements Listener
 				element.removeListener( this );
 			}
 		}
-		if ( SessionHandleAdapter.getInstance( ).getReportDesignHandle( ) != null )
+		if ( this.model != null )
 		{
-			SessionHandleAdapter.getInstance( )
-					.getReportDesignHandle( )
-					.removeListener( this );
+			this.model.removeListener( this );
 		}
 	}
 
-	private boolean doEdit( Object element )
+	public void dispose( )
 	{
-		ParamBindingHandle bindingParameter = (ParamBindingHandle) ( (Object[]) element )[1];
-		String value = null;
-		if ( bindingParameter != null )
-		{
-			value = bindingParameter.getExpression( );
-		}
-		DataSetParameterBindingInputDialog dialog = new DataSetParameterBindingInputDialog( (DataSetParameterHandle) ( (Object[]) element )[0],
-				new ExpressionProvider( getReportItemHandle( ).getContainer( ) ) );
-		dialog.setValue( value );
-		if ( dialog.open( ) == Dialog.OK )
-		{
-			value = (String) dialog.getResult( );
-			if ( value.length( ) == 0 )
-			{
-				if ( bindingParameter != null )
-				{
-					startTrans( Messages.getString( "BindingPage.MessageDlg.SaveParamBinding" ) ); //$NON-NLS-1$
-					try
-					{
-						getPropertyHandle( ).removeItem( bindingParameter.getStructure( ) );
-						commit( );
-						return true;
-					}
-					catch ( PropertyValueException e )
-					{
-						ExceptionHandler.handle( e );
-						rollback( );
-					}
-				}
-			}
-			else
-			{
-				startTrans( Messages.getString( "BindingPage.MessageDlg.SaveParamBinding" ) ); //$NON-NLS-1$
-				if ( bindingParameter == null )
-				{
-					DataSetParameterHandle parameter = (DataSetParameterHandle) ( (Object[]) element )[0];
-					try
-					{
-						bindingParameter = createBindingHandle( parameter.getName( ) );
-					}
-					catch ( SemanticException e )
-					{
-						ExceptionHandler.handle( e );
-						rollback( );
-						return false;
-					}
-				}
-				bindingParameter.setExpression( value );
-				commit( );
-				return true;
-			}
-		}
-		return false;
+		deRegisterListeners( );
+		super.dispose( );
 	}
 }

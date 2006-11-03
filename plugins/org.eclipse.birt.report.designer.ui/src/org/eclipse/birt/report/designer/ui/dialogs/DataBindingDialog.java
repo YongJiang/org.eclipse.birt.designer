@@ -13,9 +13,9 @@ package org.eclipse.birt.report.designer.ui.dialogs;
 
 import java.util.ArrayList;
 
+import org.eclipse.birt.report.designer.internal.ui.dialogs.BindingPage;
 import org.eclipse.birt.report.designer.internal.ui.util.IHelpContextIds;
 import org.eclipse.birt.report.designer.internal.ui.util.UIUtil;
-import org.eclipse.birt.report.designer.internal.ui.views.attributes.page.BindingPage;
 import org.eclipse.birt.report.designer.nls.Messages;
 import org.eclipse.birt.report.model.api.DesignElementHandle;
 import org.eclipse.jface.dialogs.TrayDialog;
@@ -30,7 +30,7 @@ import org.eclipse.swt.widgets.Shell;
 /**
  * TODO: Please document
  * 
- * @version $Revision: 1.2 $ $Date: 2006/06/01 09:34:55 $
+ * @version $Revision: 1.3 $ $Date: 2006/06/08 03:09:23 $
  */
 public class DataBindingDialog extends TrayDialog
 {
