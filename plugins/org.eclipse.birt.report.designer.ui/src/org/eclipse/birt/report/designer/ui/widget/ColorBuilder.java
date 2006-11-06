@@ -162,8 +162,9 @@ public class ColorBuilder extends Composite
 				if ( rgb == null )
 				{
 					combo.deselectAll( );
+					notifyListeners( SWT.Modify, null );
 				}
-				// processAction( rgb );
+				else processAction( rgb );
 			}
 		} );
 		initAccessible();
