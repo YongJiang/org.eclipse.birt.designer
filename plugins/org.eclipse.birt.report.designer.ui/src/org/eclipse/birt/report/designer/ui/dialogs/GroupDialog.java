@@ -76,8 +76,6 @@ import org.eclipse.swt.widgets.TabFolder;
 import org.eclipse.swt.widgets.TabItem;
 import org.eclipse.swt.widgets.Text;
 
-import com.sun.corba.se.connection.GetEndPointInfoAgainException;
-
 /**
  * Group Properties Dialog
  */
