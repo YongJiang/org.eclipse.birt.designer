@@ -30,7 +30,7 @@ public class ElementAdapterInvocationHandler implements InvocationHandler
 
 	private List adapters;
 
-	public ElementAdapterInvocationHandler( List adapters )
+	ElementAdapterInvocationHandler( List adapters )
 	{
 		this.adapters = adapters;
 	}
@@ -52,8 +52,7 @@ public class ElementAdapterInvocationHandler implements InvocationHandler
 						if ( result != null )
 							allResult.addAll( Arrays.asList( (Object[]) result ) );
 					}
-					Object a = java.lang.reflect.Array.newInstance( returnType.getComponentType( ), allResult.size( ) );
-					return allResult.toArray( (Object[])a );
+					return allResult.toArray( );
 				}
 				else if ( returnType == Collection.class )
 				{
