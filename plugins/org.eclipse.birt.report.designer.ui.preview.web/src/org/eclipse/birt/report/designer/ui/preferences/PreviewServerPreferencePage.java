@@ -1,15 +1,14 @@
-/*******************************************************************************
- * Copyright (c) 2004 Actuate Corporation.
- * All rights reserved. This program and the accompanying materials
+/* Copyright (c) 2004 Actuate Corporation and others.
+ * All rights reserved. This program and the accompanying materials 
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
- *
+ * 
  * Contributors:
- *  Actuate Corporation  - initial API and implementation
- *******************************************************************************/
-
+ *     Actuate Corporation - Initial implementation.
+ ************************************************************************************/
 package org.eclipse.birt.report.designer.ui.preferences;
+
 
 import org.eclipse.birt.report.designer.internal.ui.util.IHelpContextIds;
 import org.eclipse.birt.report.designer.internal.ui.util.UIUtil;
@@ -54,12 +53,11 @@ public class PreviewServerPreferencePage extends PreferencePage implements
 
 	protected Control createContents( Composite parent )
 	{
-		UIUtil.bindHelp( parent,
-				IHelpContextIds.PREFERENCE_BIRT_PREVIEW_SERVER_ID );
+		UIUtil.bindHelp( parent,IHelpContextIds.PREFERENCE_BIRT_PREVIEW_SERVER_ID ); 	
 		Font font = parent.getFont( );
 
 		// TODO: Need set context sensitive help
-		// WorkbenchHelp.setHelp(parent, IHelpUIConstants.PREF_PAGE_APPSERVER);
+		//		WorkbenchHelp.setHelp(parent, IHelpUIConstants.PREF_PAGE_APPSERVER);
 
 		Composite mainComposite = new Composite( parent, SWT.NULL );
 
@@ -173,26 +171,26 @@ public class PreviewServerPreferencePage extends PreferencePage implements
 		textServerPort.setFont( font );
 
 		// Validation of port field
-		// textServerPort.addModifyListener(new ModifyListener() {
-		// public void modifyText(ModifyEvent e) {
-		// try {
-		// int num = Integer.valueOf(textServerPort.getText())
-		// .intValue();
-		// if (0 <= num && num <= 0xFFFF) {
-		// // port is valid
-		// AppserverPreferencePage.this.setValid(true);
-		// setErrorMessage(null);
-		// return;
-		// }
+		//		textServerPort.addModifyListener(new ModifyListener() {
+		//			public void modifyText(ModifyEvent e) {
+		//				try {
+		//					int num = Integer.valueOf(textServerPort.getText())
+		//							.intValue();
+		//					if (0 <= num && num <= 0xFFFF) {
+		//						// port is valid
+		//						AppserverPreferencePage.this.setValid(true);
+		//						setErrorMessage(null);
+		//						return;
+		//					}
 		//
-		// // port is invalid
-		// } catch (NumberFormatException nfe) {
-		// }
-		// AppserverPreferencePage.this.setValid(false);
-		// setErrorMessage(HelpUIResources
-		// .getString("AppserverPreferencePage.invalidPort")); //$NON-NLS-1$
-		// }
-		// });
+		//					// port is invalid
+		//				} catch (NumberFormatException nfe) {
+		//				}
+		//				AppserverPreferencePage.this.setValid(false);
+		//				setErrorMessage(HelpUIResources
+		//						.getString("AppserverPreferencePage.invalidPort")); //$NON-NLS-1$
+		//			}
+		//		});
 
 		// Spacer
 		label = new Label( mainComposite, SWT.NONE );
