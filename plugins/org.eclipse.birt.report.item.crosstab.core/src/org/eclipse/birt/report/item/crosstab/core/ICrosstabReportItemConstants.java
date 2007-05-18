@@ -19,6 +19,13 @@ public interface ICrosstabReportItemConstants
 {
 
 	/**
+	 * Name of the property which defines the referred OLAP cube element by this
+	 * crosstab.
+	 */
+
+	String CUBE_PROP = "cube"; //$NON-NLS-1$
+
+	/**
 	 * Name of the property which given the caption output.
 	 */
 	String CAPTION_PROP = "caption"; //$NON-NLS-1$
