@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004 Actuate Corporation.
+ * Copyright (c) 2004, 2008 Actuate Corporation.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -104,7 +104,7 @@ public class FilterConditionBuilder extends TitleAreaDialog
 			Messages.getString( "ExpressionValueCellEditor.buildExpressionAction" ), //$NON-NLS-1$
 	};
 
-	private final String NULL_STRING = null;
+	protected final String NULL_STRING = null;
 	protected Composite dummy1, dummy2;
 	protected Label label1, label2;
 
@@ -307,7 +307,7 @@ public class FilterConditionBuilder extends TitleAreaDialog
 
 	protected static final String VALUE_OF_THIS_DATA_ITEM = Messages.getString( "FilterConditionBuilder.choice.ValueOfThisDataItem" ); //$NON-NLS-1$
 
-	private String[] getDataSetColumns( )
+	protected String[] getDataSetColumns( )
 	{
 		if ( columnList.isEmpty( ) )
 		{
@@ -1215,7 +1215,7 @@ public class FilterConditionBuilder extends TitleAreaDialog
 		}
 	};
 
-	private Object getResultSetColumn( String name )
+	protected Object getResultSetColumn( String name )
 	{
 		if ( columnList.isEmpty( ) )
 		{
