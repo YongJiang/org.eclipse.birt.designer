@@ -77,6 +77,8 @@ public class ReportPreviewFormPage extends ReportPreviewEditor implements
 	 */
 	public boolean onBroughtToTop( IReportEditorPage prePage )
 	{
+		boolean isDisplay = false;
+
 		if ( getEditorInput( ) != prePage.getEditorInput( ) )
 		{
 			setInput( prePage.getEditorInput( ) );
@@ -94,21 +96,6 @@ public class ReportPreviewFormPage extends ReportPreviewEditor implements
 			prePage.doSave( null );
 		}
 
-		boolean ret = refresh( );
-		if ( ret == false && isMissingParameter( ) )
-		{
-			// if miss parameter yet, can't preview report and scroll to
-			// the previous page.
-			editor.setActivePage( prePage.getId( ) );
-		}
-
-		return ret;
-	}
-
-	protected boolean refresh( )
-	{
-		boolean isDisplay = false;
-
 		// if miss parameter, pop up parameter dialog
 		if ( isMissingParameter( ) )
 		{
@@ -121,10 +108,14 @@ public class ReportPreviewFormPage extends ReportPreviewEditor implements
 				if ( parameterDialog.getReturnCode( ) == InputParameterHtmlDialog.RETURN_CODE_BROWSER_CLOSED )
 				{
 					isDisplay = true;
+					// if miss parameter yet, can't preview report and scroll to
+					// the previous page.
 					if ( isMissingParameter( ) )
 					{
+						editor.setActivePage( prePage.getId( ) );
 						return false;
 					}
+
 				}
 			}
 		}
@@ -140,8 +131,8 @@ public class ReportPreviewFormPage extends ReportPreviewEditor implements
 
 		ReportRequest request = new ReportRequest( ReportPreviewFormPage.this );
 		List list = new ArrayList( );
-		// Fix bug 223758, let attribute view page show a empty page.
-		list.add( new Object( ) );
+		//Fix bug 223758, let attribute view page show a empty page.
+		list.add( new Object() );
 
 		request.setSelectionObject( list );
 		request.setType( ReportRequest.SELECTION );
