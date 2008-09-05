@@ -27,6 +27,7 @@ import org.eclipse.birt.report.model.api.DesignFileException;
 import org.eclipse.birt.report.model.api.ModuleHandle;
 import org.eclipse.birt.report.model.api.ReportDesignHandle;
 import org.eclipse.birt.report.model.api.activity.SemanticException;
+import org.eclipse.birt.report.model.api.util.StringUtil;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.MessageDialog;
@@ -179,7 +180,8 @@ public class PublishTemplateWizard extends Wizard
 				if ( synchronizer != null )
 				{
 					synchronizer.notifyResourceChanged( new ReportResourceChangeEvent( this,
-							Path.fromOSString( targetFile.getAbsolutePath( ) ), IReportResourceChangeEvent.NewResource ) );
+							Path.fromOSString( targetFile.getAbsolutePath( ) ),
+							IReportResourceChangeEvent.NewResource ) );
 				}
 			}
 		}
@@ -203,28 +205,35 @@ public class PublishTemplateWizard extends Wizard
 	private void setDesignFile( String fileName ) throws DesignFileException,
 			SemanticException, IOException
 	{
-		ReportDesignHandle handle = SessionHandleAdapter.getInstance( )
+		ReportDesignHandle newHandle = SessionHandleAdapter.getInstance( )
 				.getSessionHandle( )
 				.openDesign( fileName );
 		if ( !page.getDisplayName( ).equals( "" ) ) //$NON-NLS-1$
-			handle.setDisplayName( page.getDisplayName( ) );
+			newHandle.setDisplayName( page.getDisplayName( ) );
 
-		handle.setProperty( ModuleHandle.DESCRIPTION_PROP,
+		newHandle.setProperty( ModuleHandle.DESCRIPTION_PROP,
 				page.getDescription( ) );
 
 		if ( !page.getPreviewImagePath( ).equals( "" ) ) //$NON-NLS-1$
 		{
-			handle.setIconFile( page.getPreviewImagePath( ) );
+			newHandle.setIconFile( page.getPreviewImagePath( ) );
 		}
 		else
 		{
-			handle.setIconFile( "" ); //$NON-NLS-1$
+			newHandle.setIconFile( "" ); //$NON-NLS-1$
+		}
+
+		if ( !StringUtil.isEqual( newHandle.getIconFile( ),
+				handle.getIconFile( ) ) )
+		{
+			// cleanup existing thumbnail if icon file changed.
+			newHandle.deleteThumbnail( );
 		}
 		// if ( !page.getCheetSheetPath( ).equals( "" ) ) //$NON-NLS-1$
 		// handle.setCheetSheet( page.getCheetSheetPath( ) );
 
-		handle.save( );
-		handle.close( );
+		newHandle.save( );
+		newHandle.close( );
 	}
 
 	private void copyFile( String in, File targetFile ) throws IOException
