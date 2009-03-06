@@ -209,10 +209,6 @@ public final class DataSetUIUtil
 	public static void clearPropertyBindingMap( DataSetHandle dsHandle,
 			Map dataSetMap, Map dataSourceMap ) throws SemanticException
 	{
-		if( dsHandle.getExtends( ) != null )
-		{
-			return;
-		}
 		if ( dsHandle instanceof JointDataSetHandle )
 		{
 			Iterator iter = ( (JointDataSetHandle) dsHandle ).dataSetsIterator( );
@@ -261,10 +257,6 @@ public final class DataSetUIUtil
 	public static void resetPropertyBinding( DataSetHandle dsHandle, Map dataSetMap,
 			Map dataSourceMap ) throws SemanticException
 	{
-		if ( dsHandle.getExtends( ) != null )
-		{
-			return;
-		}
 		if ( dsHandle instanceof JointDataSetHandle )
 		{
 			Iterator iter = ( (JointDataSetHandle) dsHandle ).dataSetsIterator( );
