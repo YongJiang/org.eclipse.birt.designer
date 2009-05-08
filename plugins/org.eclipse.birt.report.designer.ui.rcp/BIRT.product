@@ -91,6 +91,8 @@
       <plugin id="org.eclipse.birt.example"/>
       <plugin id="org.eclipse.birt.report.data.adapter"/>
       <plugin id="org.eclipse.birt.report.data.oda.jdbc"/>
+      <plugin id="org.eclipse.birt.report.data.oda.jdbc.dbprofile"/>
+      <plugin id="org.eclipse.birt.report.data.oda.jdbc.dbprofile.ui"/>
       <plugin id="org.eclipse.birt.report.data.oda.jdbc.ui"/>
       <plugin id="org.eclipse.birt.report.data.oda.sampledb"/>
       <plugin id="org.eclipse.birt.report.data.oda.sampledb.ui"/>
@@ -114,6 +116,7 @@
       <plugin id="org.eclipse.birt.report.engine"/>
       <plugin id="org.eclipse.birt.report.engine.dataextraction"/>
       <plugin id="org.eclipse.birt.report.engine.dataextraction.csv"/>
+      <plugin id="org.eclipse.birt.report.engine.emitter.config"/>
       <plugin id="org.eclipse.birt.report.engine.emitter.html"/>
       <plugin id="org.eclipse.birt.report.engine.emitter.pdf"/>
       <plugin id="org.eclipse.birt.report.engine.emitter.postscript"/>
@@ -172,6 +175,7 @@
       <plugin id="org.eclipse.datatools.help"/>
       <plugin id="org.eclipse.datatools.modelbase.dbdefinition"/>
       <plugin id="org.eclipse.datatools.modelbase.sql"/>
+      <plugin id="org.eclipse.datatools.oda.cshelp"/>
       <plugin id="org.eclipse.draw2d"/>
       <plugin id="org.eclipse.emf.common"/>
       <plugin id="org.eclipse.emf.ecore"/>
