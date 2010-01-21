@@ -62,6 +62,7 @@ import org.eclipse.gef.EditPolicy;
 import org.eclipse.gef.LayerConstants;
 import org.eclipse.gef.Request;
 import org.eclipse.gef.RequestConstants;
+import org.eclipse.gef.RootEditPart;
 import org.eclipse.gef.editparts.AbstractGraphicalEditPart;
 import org.eclipse.gef.editparts.LayerManager;
 import org.eclipse.gef.requests.SelectionRequest;
@@ -374,6 +375,16 @@ public abstract class ReportElementEditPart extends AbstractGraphicalEditPart im
 					return;
 				}
 				DesignElementHandle handle = (DesignElementHandle)getModel();
+				EditPart part = ReportElementEditPart.this;
+				while(part != null && !(part instanceof RootEditPart))
+				{
+					part = part.getParent( );
+				}
+				
+				if (getModelAdapter( ) == null || part == null )
+				{
+					return;
+				}
 				Object[] backGroundPosition = getBackgroundPosition( handle );
 				Object xPosition = backGroundPosition[0];
 				Object yPosition = backGroundPosition[1];
