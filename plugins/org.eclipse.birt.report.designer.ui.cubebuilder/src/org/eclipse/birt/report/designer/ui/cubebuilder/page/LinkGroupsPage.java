@@ -12,7 +12,6 @@
 package org.eclipse.birt.report.designer.ui.cubebuilder.page;
 
 import org.eclipse.birt.report.designer.core.model.SessionHandleAdapter;
-import org.eclipse.birt.report.designer.data.ui.property.AbstractDescriptionPropertyPage;
 import org.eclipse.birt.report.designer.internal.ui.util.IHelpContextIds;
 import org.eclipse.birt.report.designer.internal.ui.views.dialogs.provider.FilterHandleProvider;
 import org.eclipse.birt.report.designer.ui.cubebuilder.dialog.FilterListDialog;
@@ -27,6 +26,7 @@ import org.eclipse.birt.report.model.api.CommandStack;
 import org.eclipse.birt.report.model.api.ReportElementHandle;
 import org.eclipse.birt.report.model.api.olap.CubeHandle;
 import org.eclipse.birt.report.model.api.olap.TabularCubeHandle;
+import org.eclipse.birt.report.model.api.olap.TabularHierarchyHandle;
 import org.eclipse.draw2d.ColorConstants;
 import org.eclipse.gef.EditDomain;
 import org.eclipse.gef.EditPart;
@@ -47,7 +47,7 @@ import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 
-public class LinkGroupsPage extends AbstractDescriptionPropertyPage
+public class LinkGroupsPage extends AbstractCubePropertyPage
 {
 
 	private CubeHandle input;
@@ -117,7 +117,10 @@ public class LinkGroupsPage extends AbstractDescriptionPropertyPage
 	private Composite createCubeArea( Composite parent )
 	{
 		Composite viewerContent = new Composite( parent, SWT.BORDER );
-		viewerContent.setLayoutData( new GridData( GridData.FILL_BOTH ) );
+		GridData gd = new GridData( GridData.FILL_BOTH );
+		gd.widthHint = 500;
+		gd.heightHint = 300;
+		viewerContent.setLayoutData( gd );
 		viewerContent.setLayout( new FillLayout( ) );
 		viewer = new ScrollingGraphicalViewer( );
 		EditDomain editDomain = new EditDomain( );
@@ -138,7 +141,22 @@ public class LinkGroupsPage extends AbstractDescriptionPropertyPage
 					StructuredSelection selection = (StructuredSelection) event.getSelection( );
 					if ( selection.getFirstElement( ) instanceof HierarchyNodeEditPart
 							|| selection.getFirstElement( ) instanceof DatasetNodeEditPart )
-						filterButton.setEnabled( true );
+					{
+						Object obj = selection.getFirstElement( );
+						if ( obj instanceof HierarchyNodeEditPart )
+						{
+							TabularHierarchyHandle hierarchy = (TabularHierarchyHandle) ( (HierarchyNodeEditPart) obj ).getModel( );
+							if ( hierarchy.getPrimaryKeys( ) != null
+									&& hierarchy.getPrimaryKeys( ).size( ) > 0 )
+							{
+								filterButton.setEnabled( false );
+							}
+							else
+								filterButton.setEnabled( true );
+						}
+						else
+							filterButton.setEnabled( true );
+					}
 					else
 						filterButton.setEnabled( false );
 				}

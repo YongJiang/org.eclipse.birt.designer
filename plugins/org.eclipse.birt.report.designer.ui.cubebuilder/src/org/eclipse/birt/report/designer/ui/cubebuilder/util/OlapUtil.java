@@ -22,6 +22,7 @@ import org.eclipse.birt.report.designer.internal.ui.util.DataUtil;
 import org.eclipse.birt.report.designer.ui.cubebuilder.nls.Messages;
 import org.eclipse.birt.report.designer.ui.util.ExceptionUtil;
 import org.eclipse.birt.report.designer.util.DEUtil;
+import org.eclipse.birt.report.model.api.ColumnHintHandle;
 import org.eclipse.birt.report.model.api.DataSetHandle;
 import org.eclipse.birt.report.model.api.DesignElementHandle;
 import org.eclipse.birt.report.model.api.ResultSetColumnHandle;
@@ -42,6 +43,9 @@ public class OlapUtil
 
 	public static String[] getDataFieldNames( DataSetHandle dataset )
 	{
+		if ( dataset == null )
+			return new String[0];
+		
 		String[] columns = new String[0];
 		try
 		{
@@ -60,8 +64,55 @@ public class OlapUtil
 		return columns;
 	}
 
+	public static String getDataFieldDisplayName( ResultSetColumnHandle column )
+	{
+		if ( column == null )
+			return null;
+		
+		DataSetHandle dataset = (DataSetHandle) column.getElementHandle( );
+		for ( Iterator iter = dataset.getPropertyHandle( DataSetHandle.COLUMN_HINTS_PROP )
+				.iterator( ); iter.hasNext( ); )
+		{
+			ColumnHintHandle element = (ColumnHintHandle) iter.next( );
+			if ( element.getColumnName( ).equals( column.getColumnName( ) )
+					|| column.getColumnName( ).equals( element.getAlias( ) ) )
+			{
+				if ( element.getDisplayName( ) != null
+						&& element.getDisplayName( ).length( ) > 0 )
+					return element.getDisplayName( );
+			}
+		}
+		return column.getColumnName( );
+	}
+
+	public static String[] getDataFieldDisplayNames( DataSetHandle dataset )
+	{
+		if ( dataset == null )
+			return new String[0];
+
+		String[] columns = new String[0];
+		try
+		{
+			List columnList = DataUtil.getColumnList( dataset );
+			columns = new String[columnList.size( )];
+			for ( int i = 0; i < columnList.size( ); i++ )
+			{
+				ResultSetColumnHandle resultSetColumn = (ResultSetColumnHandle) columnList.get( i );
+				columns[i] = getDataFieldDisplayName( resultSetColumn );
+			}
+		}
+		catch ( SemanticException e )
+		{
+			ExceptionUtil.handle( e );
+		}
+		return columns;
+	}
+
 	public static ResultSetColumnHandle[] getDataFields( DataSetHandle dataset )
 	{
+		if ( dataset == null )
+			return new ResultSetColumnHandle[0];
+
 		ResultSetColumnHandle[] columns = new ResultSetColumnHandle[0];
 		try
 		{
@@ -83,6 +134,8 @@ public class OlapUtil
 	public static ResultSetColumnHandle getDataField( DataSetHandle dataset,
 			String fieldName )
 	{
+		if ( dataset == null || fieldName == null )
+			return null;
 		try
 		{
 			List columnList = DataUtil.getColumnList( dataset );
@@ -205,8 +258,12 @@ public class OlapUtil
 	public static DataSetHandle getHierarchyDataset(
 			TabularHierarchyHandle hierarchy )
 	{
+		if ( hierarchy == null )
+			return null;
 		DataSetHandle dataset = hierarchy.getDataSet( );
-		if ( dataset == null && hierarchy.getLevelCount( ) > 0 )
+		if ( dataset == null
+				&& hierarchy.getLevelCount( ) > 0
+				&& hierarchy.getContainer( ).getContainer( ) instanceof TabularCubeHandle )
 		{
 			dataset = ( (TabularCubeHandle) hierarchy.getContainer( )
 					.getContainer( ) ).getDataSet( );

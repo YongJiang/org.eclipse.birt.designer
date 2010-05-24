@@ -17,6 +17,7 @@ import org.eclipse.birt.report.designer.ui.IReportGraphicConstants;
 import org.eclipse.birt.report.designer.ui.ReportPlatformUIImages;
 import org.eclipse.birt.report.designer.ui.cubebuilder.nls.Messages;
 import org.eclipse.birt.report.designer.ui.cubebuilder.util.BuilderConstants;
+import org.eclipse.birt.report.designer.ui.cubebuilder.util.OlapUtil;
 import org.eclipse.birt.report.designer.ui.cubebuilder.util.UIHelper;
 import org.eclipse.birt.report.designer.ui.cubebuilder.util.VirtualField;
 import org.eclipse.birt.report.model.api.DataSetHandle;
@@ -91,6 +92,12 @@ public class CubeLabelProvider extends LabelProvider
 		{
 			return IMG_OTHER_DATASETS;
 		}
+		if ( element instanceof VirtualField
+				&& ( (VirtualField) element ).getType( )
+						.equals( VirtualField.TYPE_SHARED_DIMENSIONS ) )
+		{
+			return IMG_DIMENSION_FOLDER;
+		}
 		else if ( element instanceof ResultSetColumnHandle )
 		{
 			return IMG_DATAFIELD;
@@ -157,9 +164,15 @@ public class CubeLabelProvider extends LabelProvider
 		{
 			return Messages.getString( "Cube.Other.Datasets" ); //$NON-NLS-1$
 		}
+		if ( element instanceof VirtualField
+				&& ( (VirtualField) element ).getType( )
+						.equals( VirtualField.TYPE_SHARED_DIMENSIONS ) )
+		{
+			return Messages.getString("CubeLabelProvider.SharedDimensions"); //$NON-NLS-1$
+		}
 		else if ( element instanceof ResultSetColumnHandle )
 		{
-			return ( (ResultSetColumnHandle) element ).getColumnName( );
+			return OlapUtil.getDataFieldDisplayName( (ResultSetColumnHandle) element );
 		}
 		else if ( element instanceof DimensionHandle )
 		{

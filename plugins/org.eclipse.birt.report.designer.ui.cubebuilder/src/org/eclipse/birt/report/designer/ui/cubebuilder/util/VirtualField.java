@@ -21,6 +21,7 @@ public class VirtualField
 	public final static String TYPE_LEVEL = "level"; //$NON-NLS-1$
 	public final static String TYPE_DIMENSION = "dimension"; //$NON-NLS-1$
 	public final static String TYPE_OTHER_DATASETS = "other"; //$NON-NLS-1$
+	public final static String TYPE_SHARED_DIMENSIONS = "shared dimensions"; //$NON-NLS-1$
 	private String type;
 
 	public VirtualField( String type )
@@ -52,6 +53,8 @@ public class VirtualField
 			return Messages.getString( "GroupsPage.VirtualField.Dimension" ); //$NON-NLS-1$
 		if ( type.equals( TYPE_OTHER_DATASETS ) )
 			return Messages.getString( "Cube.Other.Datasets" ); //$NON-NLS-1$
+		if ( type.equals( TYPE_SHARED_DIMENSIONS ) )
+			return Messages.getString( "VirtualField.SharedDimensions" ); //$NON-NLS-1$
 		return super.toString( );
 	}
 
@@ -67,7 +70,10 @@ public class VirtualField
 
 	public int hashCode( )
 	{
-		return getModel( ).hashCode( ) + getType( ).hashCode( );
+		if ( getModel( ) == null )
+			return getType( ).hashCode( );
+		else
+			return getModel( ).hashCode( ) + getType( ).hashCode( );
 	}
 
 	public boolean equals( Object obj )
@@ -79,7 +85,9 @@ public class VirtualField
 		VirtualField temp = (VirtualField) obj;
 		if ( temp == this )
 			return true;
-		else if ( temp.getModel( ) == this.getModel( )
+		else if ( temp.getModel( ) == null && this.getModel( ) != null )
+			return false;
+		else if ( temp.getModel( ).equals( this.getModel( ) )
 				&& temp.getType( ).equals( this.getType( ) ) )
 			return true;
 		return false;

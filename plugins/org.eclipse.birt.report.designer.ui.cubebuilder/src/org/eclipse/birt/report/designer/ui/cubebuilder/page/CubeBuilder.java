@@ -12,17 +12,23 @@
 package org.eclipse.birt.report.designer.ui.cubebuilder.page;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
 import org.eclipse.birt.report.designer.data.ui.property.AbstractTitlePropertyDialog;
 import org.eclipse.birt.report.designer.data.ui.property.PropertyNode;
+import org.eclipse.birt.report.designer.internal.ui.util.ExceptionHandler;
 import org.eclipse.birt.report.designer.ui.cubebuilder.nls.Messages;
+import org.eclipse.birt.report.designer.ui.cubebuilder.util.OlapUtil;
 import org.eclipse.birt.report.designer.ui.views.ElementAdapterManager;
 import org.eclipse.birt.report.model.api.DesignElementHandle;
 import org.eclipse.birt.report.model.api.DimensionConditionHandle;
+import org.eclipse.birt.report.model.api.DimensionJoinConditionHandle;
 import org.eclipse.birt.report.model.api.ModuleUtil;
 import org.eclipse.birt.report.model.api.activity.NotificationEvent;
+import org.eclipse.birt.report.model.api.activity.SemanticException;
+import org.eclipse.birt.report.model.api.metadata.PropertyValueException;
 import org.eclipse.birt.report.model.api.olap.CubeHandle;
 import org.eclipse.birt.report.model.api.olap.HierarchyHandle;
 import org.eclipse.birt.report.model.api.olap.TabularCubeHandle;
@@ -115,10 +121,112 @@ public class CubeBuilder extends AbstractTitlePropertyDialog implements
 	{
 		if ( checkCubeLink( ) )
 		{
+			clearInvalidGroup( );
+			clearInvalidJoin( );
 			return true;
 		}
 		else
 			return false;
+	}
+
+	private void clearInvalidJoin( )
+	{
+		Iterator iter = input.joinConditionsIterator( );
+		List<DimensionConditionHandle> invaildConditionList = new ArrayList<DimensionConditionHandle>( );
+		while ( iter.hasNext( ) )
+		{
+			DimensionConditionHandle condition = (DimensionConditionHandle) iter.next( );
+			TabularHierarchyHandle conditionHierarchy = (TabularHierarchyHandle) condition.getHierarchy( );
+			if ( conditionHierarchy == null )
+			{
+				invaildConditionList.add( condition );
+			}
+			else
+			{
+				if ( condition.getJoinConditions( ) != null )
+				{
+					Iterator iter1 = condition.getJoinConditions( ).iterator( );
+					List<DimensionJoinConditionHandle> invaildJoinList = new ArrayList<DimensionJoinConditionHandle>( );
+					while ( iter1.hasNext( ) )
+					{
+						DimensionJoinConditionHandle join = (DimensionJoinConditionHandle) iter1.next( );
+						String primaryKey = join.getCubeKey( );
+						String hierarchyKey = join.getHierarchyKey( );
+
+						if ( OlapUtil.getDataField( input.getDataSet( ),
+								primaryKey ) == null )
+						{
+							invaildJoinList.add( join );
+						}
+						else if ( OlapUtil.getDataField( conditionHierarchy.getDataSet( ),
+								hierarchyKey ) == null )
+						{
+							invaildJoinList.add( join );
+						}
+					}
+					if ( !invaildJoinList.isEmpty( ) )
+					{
+						for ( int i = 0; i < invaildJoinList.size( ); i++ )
+						{
+							try
+							{
+								invaildJoinList.get( i ).drop( );
+							}
+							catch ( PropertyValueException e )
+							{
+								ExceptionHandler.handle( e );
+							}
+						}
+					}
+				}
+
+				if ( condition.getJoinConditions( ) == null
+						|| !condition.getJoinConditions( )
+								.iterator( )
+								.hasNext( ) )
+				{
+					invaildConditionList.add( condition );
+				}
+			}
+		}
+		if ( !invaildConditionList.isEmpty( ) )
+		{
+			for ( int i = 0; i < invaildConditionList.size( ); i++ )
+			{
+				try
+				{
+					invaildConditionList.get( i ).drop( );
+				}
+				catch ( PropertyValueException e )
+				{
+					ExceptionHandler.handle( e );
+				}
+			}
+		}
+	}
+
+	private void clearInvalidGroup( )
+	{
+		if ( input != null )
+		{
+			TabularDimensionHandle[] dimensions = (TabularDimensionHandle[]) input.getContents( ICubeModel.DIMENSIONS_PROP )
+					.toArray( new TabularDimensionHandle[0] );
+			for ( int i = 0; i < dimensions.length; i++ )
+			{
+				TabularHierarchyHandle hierarchy = (TabularHierarchyHandle) dimensions[i].getDefaultHierarchy( );
+				if ( hierarchy == null || hierarchy.getLevelCount( ) == 0 )
+				{
+					try
+					{
+						dimensions[i].drop( );
+					}
+					catch ( SemanticException e )
+					{
+						ExceptionHandler.handle( e );
+					}
+				}
+			}
+		}
 	}
 
 	private boolean checkCubeLink( )
@@ -142,6 +250,8 @@ public class CubeBuilder extends AbstractTitlePropertyDialog implements
 		else
 		{
 			boolean flag = true;
+
+			HashMap conditionMap = new HashMap( );
 			for ( int i = 0; i < childList.size( ); i++ )
 			{
 				flag = true;
@@ -154,13 +264,18 @@ public class CubeBuilder extends AbstractTitlePropertyDialog implements
 					if ( ModuleUtil.isEqualHierarchiesForJointCondition( conditionHierarchy,
 							hierarchy ) )
 					{
-						if ( condition.getJoinConditions( ) != null
-								&& condition.getJoinConditions( )
-										.iterator( )
-										.hasNext( ) )
+						if ( condition.getJoinConditions( ) != null )
 						{
-							flag = false;
-							break;
+							Iterator iter1 = condition.getJoinConditions( )
+									.iterator( );
+							while ( iter1.hasNext( ) )
+							{
+								iter1.next( );
+								int number = conditionMap.containsKey( conditionHierarchy ) ? ( (Integer) conditionMap.get( conditionHierarchy ) ).intValue( )
+										: 0;
+								conditionMap.put( conditionHierarchy, ++number );
+								flag = false;
+							}
 						}
 					}
 				}
@@ -169,32 +284,31 @@ public class CubeBuilder extends AbstractTitlePropertyDialog implements
 			}
 			if ( flag )
 			{
+				conditionMap.clear( );
+
 				String[] buttons = new String[]{
-						IDialogConstants.YES_LABEL,
-						IDialogConstants.NO_LABEL,
-						IDialogConstants.CANCEL_LABEL
+						IDialogConstants.YES_LABEL, IDialogConstants.NO_LABEL
 				};
 
 				MessageDialog d = new MessageDialog( getShell( ),
 						Messages.getString( "MissLinkDialog.Title" ), //$NON-NLS-1$
 						null,
 						Messages.getString( "MissLinkDialog.Question" ), //$NON-NLS-1$
-						MessageDialog.INFORMATION,
+						MessageDialog.WARNING,
 						buttons,
 						0 );
 				int result = d.open( );
 				if ( result == 1 )
 					return true;
-				else if ( result == 2 )
-					return false;
 				else
 				{
 					this.showSelectionPage( getLinkGroupNode( ) );
 					return false;
 				}
 			}
-			else
-				return true;
+
+			conditionMap.clear( );
+			return true;
 		}
 	}
 

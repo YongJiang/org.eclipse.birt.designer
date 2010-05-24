@@ -75,16 +75,14 @@ public class GroupDialog extends TitleAreaDialog
 		this.isNew = isNew;
 	}
 
-	private String dataField;
+	private ResultSetColumnHandle dataField;
 	private TabularHierarchyHandle hierarchy;
-	private TabularCubeHandle cube;
 	private IDialogHelper helper;
 	private List levelList = new ArrayList( );
 
-	public void setInput( TabularCubeHandle cube,
-			TabularHierarchyHandle hierarchy, String dataField )
+	public void setInput( TabularHierarchyHandle hierarchy,
+			ResultSetColumnHandle dataField )
 	{
-		this.cube = cube;
 		dimension = (DimensionHandle) hierarchy.getContainer( );
 		this.dataField = dataField;
 		this.hierarchy = hierarchy;
@@ -214,15 +212,18 @@ public class GroupDialog extends TitleAreaDialog
 
 		levelViewer.setInput( getDateTypeNames( getLevelTypesByDateType( ) ) );
 		levelViewer.expandAll( );
-		TreeItem topNode = levelViewer.getTree( ).getItem( 0 );
-		do
+		if ( levelViewer.getTree( ).getItemCount( ) > 0 )
 		{
+			TreeItem topNode = levelViewer.getTree( ).getItem( 0 );
+			do
+			{
+				if ( levelList.contains( topNode.getData( ) ) )
+					topNode.setChecked( true );
+				topNode = topNode.getItem( 0 );
+			} while ( topNode.getItemCount( ) > 0 );
 			if ( levelList.contains( topNode.getData( ) ) )
 				topNode.setChecked( true );
-			topNode = topNode.getItem( 0 );
-		} while ( topNode.getItemCount( ) > 0 );
-		if ( levelList.contains( topNode.getData( ) ) )
-			topNode.setChecked( true );
+		}
 		checkOKButtonStatus( );
 	}
 
@@ -290,9 +291,13 @@ public class GroupDialog extends TitleAreaDialog
 
 		public Object[] getElements( Object inputElement )
 		{
-			return new Object[]{
-				getDateTypeNames( getLevelTypesByDateType( ) ).get( 0 )
-			};
+			if ( getLevelTypesByDateType( ) != null
+					&& getLevelTypesByDateType( ).length > 0 )
+				return new Object[]{
+					getDateTypeNames( getLevelTypesByDateType( ) ).get( 0 )
+				};
+
+			return new Object[0];
 		}
 
 		public void inputChanged( Viewer viewer, Object oldInput,
@@ -352,16 +357,15 @@ public class GroupDialog extends TitleAreaDialog
 				{
 					TabularLevelHandle level = DesignElementFactory.getInstance( )
 							.newTabularLevel( (DimensionHandle) hierarchy.getContainer( ),
-									dataField );
-					level.setColumnName( dataField );
+									OlapUtil.getDataFieldDisplayName( dataField ) );
+					level.setColumnName( dataField.getColumnName( ) );
 					DataSetHandle dataset = hierarchy.getDataSet( );
 					if ( dataset == null )
 					{
 						dataset = ( (TabularCubeHandle) hierarchy.getContainer( )
 								.getContainer( ) ).getDataSet( );
 					}
-					level.setDataType( OlapUtil.getDataField( dataset,
-							dataField ).getDataType( ) );
+					level.setDataType( dataField.getDataType( ) );
 					hierarchy.add( IHierarchyModel.LEVELS_PROP, level );
 				}
 			}
@@ -418,12 +422,12 @@ public class GroupDialog extends TitleAreaDialog
 					String dateType = (String) dateTypeSelectedList.get( i );
 					TabularLevelHandle level = DesignElementFactory.getInstance( )
 							.newTabularLevel( (DimensionHandle) hierarchy.getContainer( ),
-									dateType );
+									getDateTypeDisplayName( dateType ) );
 					try
 					{
 						level.setDataType( DesignChoiceConstants.COLUMN_DATA_TYPE_INTEGER );
 						level.setDateTimeLevelType( dateType );
-						level.setColumnName( dataField );
+						level.setColumnName( dataField.getColumnName( ) );
 						hierarchy.add( HierarchyHandle.LEVELS_PROP, level );
 					}
 					catch ( SemanticException e )
@@ -450,12 +454,12 @@ public class GroupDialog extends TitleAreaDialog
 							{
 								TabularLevelHandle level = DesignElementFactory.getInstance( )
 										.newTabularLevel( (DimensionHandle) hierarchy.getContainer( ),
-												dateType );
+												getDateTypeDisplayName( dateType ) );
 								try
 								{
 									level.setDataType( DesignChoiceConstants.COLUMN_DATA_TYPE_INTEGER );
 									level.setDateTimeLevelType( dateType );
-									level.setColumnName( dataField );
+									level.setColumnName( dataField.getColumnName( ) );
 									hierarchy.add( HierarchyHandle.LEVELS_PROP,
 											level,
 											j );
@@ -474,12 +478,12 @@ public class GroupDialog extends TitleAreaDialog
 						// out of old level list:month out (year,quarter)
 						TabularLevelHandle level = DesignElementFactory.getInstance( )
 								.newTabularLevel( (DimensionHandle) hierarchy.getContainer( ),
-										dateType );
+										getDateTypeDisplayName( dateType ) );
 						try
 						{
 							level.setDataType( DesignChoiceConstants.COLUMN_DATA_TYPE_INTEGER );
 							level.setDateTimeLevelType( dateType );
-							level.setColumnName( dataField );
+							level.setColumnName( dataField.getColumnName( ) );
 							hierarchy.add( HierarchyHandle.LEVELS_PROP, level );
 							levelList.add( j++, dateType );
 						}
@@ -603,7 +607,7 @@ public class GroupDialog extends TitleAreaDialog
 
 	private void createSecurityPart( Composite parent )
 	{
-		Object[] helperProviders = ElementAdapterManager.getAdapters( cube,
+		Object[] helperProviders = ElementAdapterManager.getAdapters( dimension,
 				IDialogHelperProvider.class );
 		if ( helperProviders != null )
 		{
@@ -619,9 +623,9 @@ public class GroupDialog extends TitleAreaDialog
 						helper.setProperty( BuilderConstants.SECURITY_EXPRESSION_LABEL,
 								Messages.getString( "GroupDialog.Access.Control.List.Expression" ) ); //$NON-NLS-1$
 						helper.setProperty( BuilderConstants.SECURITY_EXPRESSION_CONTEXT,
-								cube );
+								dimension );
 						helper.setProperty( BuilderConstants.SECURITY_EXPRESSION_PROVIDER,
-								new CubeExpressionProvider( cube ) );
+								new CubeExpressionProvider( dimension ) );
 						helper.setProperty( BuilderConstants.SECURITY_EXPRESSION_PROPERTY,
 								dimension.getACLExpression( ) );
 						helper.createContent( parent );
@@ -692,20 +696,27 @@ public class GroupDialog extends TitleAreaDialog
 		checkOKButtonStatus( );
 	}
 
-	public void setInput( TabularCubeHandle cube,
-			TabularHierarchyHandle hierarchy )
+	public void setInput( TabularHierarchyHandle hierarchy )
 	{
 		if ( hierarchy.getLevelCount( ) == 0 )
-			setInput( cube, hierarchy, null );
+			setInput( hierarchy, null );
 		else
 		{
 			if ( !isDateType( hierarchy,
 					( (TabularLevelHandle) hierarchy.getLevel( 0 ) ).getColumnName( ) ) )
-				setInput( cube, hierarchy, null );
+				setInput( hierarchy, null );
 			else
-				setInput( cube,
-						hierarchy,
-						( (TabularLevelHandle) hierarchy.getLevel( 0 ) ).getColumnName( ) );
+			{
+				DataSetHandle dataset = hierarchy.getDataSet( );
+				if ( dataset == null )
+				{
+					dataset = ( (TabularCubeHandle) hierarchy.getContainer( )
+							.getContainer( ) ).getDataSet( );
+				}
+				setInput( hierarchy,
+						OlapUtil.getDataField( dataset,
+								( (TabularLevelHandle) hierarchy.getLevel( 0 ) ).getColumnName( ) ) );
+			}
 		}
 
 	}
@@ -720,11 +731,7 @@ public class GroupDialog extends TitleAreaDialog
 			dataset = ( (TabularCubeHandle) hierarchy.getContainer( )
 					.getContainer( ) ).getDataSet( );
 		}
-		ResultSetColumnHandle column = OlapUtil.getDataField( dataset,
-				dataField );
-		if ( column == null )
-			return null;
-		String dataType = column.getDataType( );
+		String dataType = dataField.getDataType( );
 		if ( dataType.equals( DesignChoiceConstants.COLUMN_DATA_TYPE_DATETIME ) )
 			return OlapUtil.getDateTimeLevelTypeChoices( );
 		else if ( dataType.equals( DesignChoiceConstants.COLUMN_DATA_TYPE_DATE ) )

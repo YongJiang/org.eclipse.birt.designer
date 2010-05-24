@@ -840,7 +840,7 @@ public class CrosstabBindingDialogHelper extends AbstractBindingDialogHelper
 
 		paramsComposite = new Composite( composite, SWT.NONE );
 		GridData gridData = new GridData( GridData.FILL_HORIZONTAL );
-		gridData.horizontalSpan = 3;
+		gridData.horizontalSpan = 4;
 		gridData.exclude = true;
 		paramsComposite.setLayoutData( gridData );
 		GridLayout layout = new GridLayout( );
@@ -848,7 +848,6 @@ public class CrosstabBindingDialogHelper extends AbstractBindingDialogHelper
 		layout.marginWidth = layout.marginHeight = 0;
 		layout.numColumns = 4;
 		paramsComposite.setLayout( layout );
-		new Label( composite, SWT.NONE );
 
 		new Label( composite, SWT.NONE ).setText( FILTER_CONDITION );
 		txtFilter = new Text( composite, SWT.BORDER );
@@ -876,7 +875,7 @@ public class CrosstabBindingDialogHelper extends AbstractBindingDialogHelper
 		new Label( composite, SWT.NONE ).setText( EXPRESSION );
 		txtExpression = new Text( composite, SWT.BORDER );
 		GridData gd = new GridData( GridData.FILL_HORIZONTAL );
-		gd.horizontalSpan = 3;
+		gd.horizontalSpan = 2;
 		txtExpression.setLayoutData( gd );
 		createExpressionButton( composite, txtExpression );
 		txtExpression.addModifyListener( new ModifyListener( ) {
@@ -929,7 +928,7 @@ public class CrosstabBindingDialogHelper extends AbstractBindingDialogHelper
 								SWT.BORDER );
 						cmbDataField.setLayoutData( GridDataFactory.fillDefaults( )
 								.grab( true, false )
-								.span( 2, 1 )
+								.span( 3, 1 )
 								.create( ) );
 						cmbDataField.setVisibleItemCount( 30 );
 						initDataFields( cmbDataField, param );
@@ -962,6 +961,7 @@ public class CrosstabBindingDialogHelper extends AbstractBindingDialogHelper
 						} );
 						GridData gridData = new GridData( GridData.FILL_HORIZONTAL );
 						gridData.horizontalIndent = 0;
+						gridData.horizontalSpan = 2;
 						txtParam.setLayoutData( gridData );
 						createExpressionButton( paramsComposite, txtParam );
 						paramsMap.put( param.getName( ), txtParam );
@@ -1013,26 +1013,6 @@ public class CrosstabBindingDialogHelper extends AbstractBindingDialogHelper
 				control,
 				expressionProvider,
 				this.bindingHolder );
-	}
-
-	private String getArgumentDisplayNameByName( String functionName,
-			String argument )
-	{
-		try
-		{
-			IAggrFunction function = DataUtil.getAggregationManager( )
-					.getAggregation( functionName );
-			for ( IParameterDefn param : function.getParameterDefn( ) )
-			{
-				if ( param.getName( ).equals( argument ) )
-					return param.getDisplayName( );
-			}
-		}
-		catch ( BirtException e )
-		{
-			ExceptionUtil.handle( e );
-		}
-		return null;
 	}
 
 	public void validate( )

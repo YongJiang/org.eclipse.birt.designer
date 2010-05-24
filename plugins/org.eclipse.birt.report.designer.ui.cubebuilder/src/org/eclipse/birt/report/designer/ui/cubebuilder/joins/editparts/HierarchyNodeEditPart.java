@@ -15,12 +15,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import org.eclipse.birt.report.designer.internal.ui.util.DataUtil;
-import org.eclipse.birt.report.designer.internal.ui.util.ExceptionHandler;
 import org.eclipse.birt.report.designer.ui.cubebuilder.joins.editpolicies.TableSelectionEditPolicy;
 import org.eclipse.birt.report.designer.ui.cubebuilder.joins.figures.TableNodeFigure;
 import org.eclipse.birt.report.designer.ui.cubebuilder.joins.figures.TablePaneFigure;
 import org.eclipse.birt.report.designer.ui.cubebuilder.util.BuilderConstants;
+import org.eclipse.birt.report.designer.ui.cubebuilder.util.OlapUtil;
 import org.eclipse.birt.report.designer.ui.cubebuilder.util.UIHelper;
 import org.eclipse.birt.report.designer.ui.util.ExceptionUtil;
 import org.eclipse.birt.report.model.api.DesignElementHandle;
@@ -29,10 +28,13 @@ import org.eclipse.birt.report.model.api.ResultSetColumnHandle;
 import org.eclipse.birt.report.model.api.activity.NotificationEvent;
 import org.eclipse.birt.report.model.api.activity.SemanticException;
 import org.eclipse.birt.report.model.api.core.Listener;
+import org.eclipse.birt.report.model.api.olap.DimensionHandle;
 import org.eclipse.birt.report.model.api.olap.TabularCubeHandle;
 import org.eclipse.birt.report.model.api.olap.TabularDimensionHandle;
 import org.eclipse.birt.report.model.api.olap.TabularHierarchyHandle;
+import org.eclipse.birt.report.model.api.olap.TabularLevelHandle;
 import org.eclipse.birt.report.model.elements.interfaces.ICubeModel;
+import org.eclipse.birt.report.model.elements.interfaces.IHierarchyModel;
 import org.eclipse.draw2d.IFigure;
 import org.eclipse.draw2d.Polygon;
 import org.eclipse.draw2d.geometry.Point;
@@ -56,7 +58,7 @@ public class HierarchyNodeEditPart extends NodeEditPartHelper implements
 	public TableNodeFigure tableNode;
 
 	private TabularCubeHandle cube;
-	private TabularDimensionHandle dimension;
+	private DimensionHandle dimension;
 	private TabularHierarchyHandle hierarchy;
 
 	/**
@@ -67,7 +69,7 @@ public class HierarchyNodeEditPart extends NodeEditPartHelper implements
 	{
 		setModel( hierarchy );
 		setParent( parent );
-		this.dimension = (TabularDimensionHandle) hierarchy.getContainer( );
+		this.dimension = (DimensionHandle) hierarchy.getContainer( );
 		this.cube = (TabularCubeHandle) parent.getModel( );
 		this.hierarchy = hierarchy;
 	}
@@ -99,20 +101,34 @@ public class HierarchyNodeEditPart extends NodeEditPartHelper implements
 
 		List childList = new ArrayList( );
 
-		if ( hierarchy.getDataSet( ) != null )
+		TabularLevelHandle[] levels = (TabularLevelHandle[]) hierarchy.getContents( IHierarchyModel.LEVELS_PROP )
+				.toArray( new TabularLevelHandle[0] );
+		if ( levels != null )
 		{
-			try
+			for ( int i = 0; i < levels.length; i++ )
 			{
-				List columnList = DataUtil.getColumnList( hierarchy.getDataSet( ) );
-				for ( int i = 0; i < columnList.size( ); i++ )
+				if ( levels[i].getColumnName( ) != null )
 				{
-					ResultSetColumnHandle resultSetColumn = (ResultSetColumnHandle) columnList.get( i );
-					childList.add( resultSetColumn );
+					ResultSetColumnHandle resultSetColumn = OlapUtil.getDataField( hierarchy.getDataSet( ),
+							levels[i].getColumnName( ) );
+					if ( resultSetColumn != null
+							&& !childList.contains( resultSetColumn ) )
+					{
+						boolean flag = true;
+						for ( int j = 0; j < childList.size( ); j++ )
+						{
+							ResultSetColumnHandle column = (ResultSetColumnHandle) childList.get( j );
+							if ( column.getColumnName( )
+									.equals( resultSetColumn.getColumnName( ) ) )
+							{
+								flag = false;
+								break;
+							}
+						}
+						if ( flag )
+							childList.add( resultSetColumn );
+					}
 				}
-			}
-			catch ( SemanticException e )
-			{
-				ExceptionHandler.handle( e );
 			}
 		}
 		return childList;

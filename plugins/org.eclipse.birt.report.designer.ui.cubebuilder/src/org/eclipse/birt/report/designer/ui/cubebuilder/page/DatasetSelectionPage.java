@@ -14,8 +14,8 @@ package org.eclipse.birt.report.designer.ui.cubebuilder.page;
 import org.eclipse.birt.report.designer.core.model.SessionHandleAdapter;
 import org.eclipse.birt.report.designer.core.util.mediator.IColleague;
 import org.eclipse.birt.report.designer.core.util.mediator.request.ReportRequest;
-import org.eclipse.birt.report.designer.data.ui.property.AbstractDescriptionPropertyPage;
 import org.eclipse.birt.report.designer.internal.ui.data.DataService;
+import org.eclipse.birt.report.designer.internal.ui.util.ExceptionHandler;
 import org.eclipse.birt.report.designer.internal.ui.util.IHelpContextIds;
 import org.eclipse.birt.report.designer.internal.ui.views.dialogs.provider.FilterHandleProvider;
 import org.eclipse.birt.report.designer.ui.cubebuilder.dialog.FilterListDialog;
@@ -24,6 +24,7 @@ import org.eclipse.birt.report.designer.ui.cubebuilder.util.OlapUtil;
 import org.eclipse.birt.report.designer.ui.util.ExceptionUtil;
 import org.eclipse.birt.report.designer.ui.util.UIUtil;
 import org.eclipse.birt.report.designer.ui.views.ElementAdapterManager;
+import org.eclipse.birt.report.designer.util.ColorManager;
 import org.eclipse.birt.report.designer.util.DEUtil;
 import org.eclipse.birt.report.model.api.CommandStack;
 import org.eclipse.birt.report.model.api.DataSetHandle;
@@ -38,6 +39,10 @@ import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.ModifyListener;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.TraverseEvent;
+import org.eclipse.swt.events.TraverseListener;
+import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
@@ -47,7 +52,7 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 
-public class DatasetSelectionPage extends AbstractDescriptionPropertyPage
+public class DatasetSelectionPage extends AbstractCubePropertyPage
 {
 
 	private static final String NEW_DATA_SET = Messages.getString( "DatasetSelectionPage.Combo.NewDataSet0" ); //$NON-NLS-1$
@@ -56,6 +61,8 @@ public class DatasetSelectionPage extends AbstractDescriptionPropertyPage
 	private Text nameText;
 	private CubeBuilder builder;
 	private Button filterButton;
+	private Button primaryKeyButton;
+	private Label primaryKeyLabel, primaryKeyHint;
 
 	public DatasetSelectionPage( CubeBuilder builder, CubeHandle model )
 	{
@@ -67,7 +74,7 @@ public class DatasetSelectionPage extends AbstractDescriptionPropertyPage
 	{
 		Composite container = new Composite( parent, SWT.NONE );
 		GridLayout layout = new GridLayout( );
-		layout.numColumns = 3;
+		layout.numColumns = 4;
 		layout.marginRight = 20;
 		container.setLayout( layout );
 
@@ -96,13 +103,15 @@ public class DatasetSelectionPage extends AbstractDescriptionPropertyPage
 		} );
 
 		GridData data = new GridData( GridData.FILL_HORIZONTAL );
-		data.horizontalSpan = 2;
+		data.horizontalSpan = 3;
 		nameText.setLayoutData( data );
 
 		Label dateSetLabel = new Label( container, SWT.NONE );
 		dateSetLabel.setText( Messages.getString( "DatasetPage.Label.PrimaryDataset" ) ); //$NON-NLS-1$
 		dataSetCombo = new Combo( container, SWT.BORDER | SWT.READ_ONLY );
-		dataSetCombo.setLayoutData( new GridData( GridData.FILL_HORIZONTAL ) );
+		data = new GridData( GridData.FILL_HORIZONTAL );
+		data.horizontalSpan = 2;
+		dataSetCombo.setLayoutData( data );
 		dataSetCombo.setVisibleItemCount( 30 );
 		dataSetCombo.addSelectionListener( new SelectionAdapter( ) {
 
@@ -126,12 +135,12 @@ public class DatasetSelectionPage extends AbstractDescriptionPropertyPage
 				CommandStack stack = SessionHandleAdapter.getInstance( )
 						.getCommandStack( );
 				stack.startTrans( "" ); //$NON-NLS-1$
-				
+
 				FilterHandleProvider provider = (FilterHandleProvider) ElementAdapterManager.getAdapter( builder,
 						FilterHandleProvider.class );
 				if ( provider == null )
 					provider = new FilterHandleProvider( );
-				
+
 				FilterListDialog dialog = new FilterListDialog( provider );
 				dialog.setInput( input );
 				if ( dialog.open( ) == Window.OK )
@@ -145,6 +154,61 @@ public class DatasetSelectionPage extends AbstractDescriptionPropertyPage
 		} );
 
 		filterButton.setEnabled( false );
+
+		new Label( container, SWT.NONE );
+
+		primaryKeyButton = new Button( container, SWT.CHECK );
+		primaryKeyButton.addSelectionListener( new SelectionAdapter( ) {
+
+			public void widgetSelected( SelectionEvent e )
+			{
+				try
+				{
+					( (TabularCubeHandle) input ).setAutoPrimaryKey( primaryKeyButton.getSelection( ) );
+				}
+				catch ( SemanticException e1 )
+				{
+					ExceptionHandler.handle( e1 );
+				}
+			}
+
+		} );
+		
+		primaryKeyLabel = new Label( container, SWT.WRAP );
+		data = new GridData(SWT.FILL, SWT.NONE, false, false);
+		data.horizontalSpan = 2;
+		data.widthHint = 500;
+		primaryKeyLabel.setLayoutData( data );
+		primaryKeyLabel.setText( Messages.getString( "DatasetSelectionPage.Label.Auto.Primary.Key" ) ); //$NON-NLS-1$
+
+		primaryKeyLabel.addTraverseListener( new TraverseListener( ) {
+
+			public void keyTraversed( TraverseEvent e )
+			{
+				if ( e.detail == SWT.TRAVERSE_MNEMONIC && e.doit )
+				{
+					e.detail = SWT.TRAVERSE_NONE;
+					primaryKeyButton.setSelection( !primaryKeyButton.getSelection( ) );
+				}
+			}
+		} );
+
+		new Label( container, SWT.NONE );
+				
+		primaryKeyHint = new Label( container, SWT.WRAP );
+		data = new GridData(SWT.FILL, SWT.NONE, false, false);
+		data.horizontalSpan = 3;
+		data.widthHint = 500;
+		primaryKeyHint.setLayoutData( data );
+		primaryKeyHint.setText( Messages.getString( "DatasetSelectionPage.Text.Auto.Primary.Key" ) ); //$NON-NLS-1$
+		primaryKeyHint.setForeground( ColorManager.getColor( 128, 128, 128 ) );
+
+		FontData fontData = primaryKeyHint.getFont( ).getFontData( )[0];
+		Font font = new Font( parent.getDisplay( ), new FontData( fontData.getName( ),
+				fontData.getHeight( ),
+				SWT.ITALIC ) );
+		primaryKeyHint.setFont( font );
+
 		return container;
 	}
 
@@ -200,6 +264,7 @@ public class DatasetSelectionPage extends AbstractDescriptionPropertyPage
 				filterButton.setEnabled( true );
 			}
 		}
+		primaryKeyButton.setSelection( ( (TabularCubeHandle) input ).autoPrimaryKey( ) );
 	}
 
 	private void load( )

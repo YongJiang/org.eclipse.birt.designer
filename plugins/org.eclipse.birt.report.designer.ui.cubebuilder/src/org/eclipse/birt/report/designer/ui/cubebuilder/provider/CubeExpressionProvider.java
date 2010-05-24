@@ -19,6 +19,7 @@ import java.util.List;
 import org.eclipse.birt.report.designer.internal.ui.util.DataUtil;
 import org.eclipse.birt.report.designer.ui.cubebuilder.util.OlapUtil;
 import org.eclipse.birt.report.designer.ui.dialogs.ExpressionProvider;
+import org.eclipse.birt.report.designer.ui.expressions.ExpressionFilter;
 import org.eclipse.birt.report.designer.ui.util.ExceptionUtil;
 import org.eclipse.birt.report.designer.util.DEUtil;
 import org.eclipse.birt.report.model.api.DataSetHandle;
@@ -27,9 +28,13 @@ import org.eclipse.birt.report.model.api.DesignElementHandle;
 import org.eclipse.birt.report.model.api.PropertyHandle;
 import org.eclipse.birt.report.model.api.ResultSetColumnHandle;
 import org.eclipse.birt.report.model.api.activity.SemanticException;
+import org.eclipse.birt.report.model.api.olap.DimensionHandle;
+import org.eclipse.birt.report.model.api.olap.MeasureGroupHandle;
+import org.eclipse.birt.report.model.api.olap.MeasureHandle;
 import org.eclipse.birt.report.model.api.olap.TabularCubeHandle;
 import org.eclipse.birt.report.model.api.olap.TabularHierarchyHandle;
 import org.eclipse.birt.report.model.api.olap.TabularLevelHandle;
+import org.eclipse.birt.report.model.api.olap.TabularMeasureHandle;
 
 public class CubeExpressionProvider extends ExpressionProvider
 {
@@ -41,14 +46,59 @@ public class CubeExpressionProvider extends ExpressionProvider
 		super( handle );
 		if ( handle instanceof TabularCubeHandle )
 			dataSetHandle = ( (TabularCubeHandle) handle ).getDataSet( );
+		if ( handle instanceof DimensionHandle )
+		{
+			if ( ( (DimensionHandle) handle ).getDefaultHierarchy( ) instanceof TabularHierarchyHandle )
+				dataSetHandle = OlapUtil.getHierarchyDataset( (TabularHierarchyHandle) ( (DimensionHandle) handle ).getDefaultHierarchy( ) );
+		}
 		else if ( handle instanceof TabularHierarchyHandle )
 		{
 			dataSetHandle = OlapUtil.getHierarchyDataset( (TabularHierarchyHandle) handle );
+		}
+		else if ( handle instanceof TabularMeasureHandle )
+		{
+			Object parent = ( (MeasureHandle) handle ).getContainer( )
+					.getContainer( );
+			if ( parent instanceof TabularCubeHandle )
+			{
+				dataSetHandle = ( (TabularCubeHandle) parent ).getDataSet( );
+			}
+		}
+		else if ( handle instanceof MeasureGroupHandle )
+		{
+			Object parent = (TabularCubeHandle) ( (MeasureGroupHandle) handle ).getContainer( )
+					.getContainer( );
+			if ( parent instanceof TabularCubeHandle )
+			{
+				dataSetHandle = ( (TabularCubeHandle) parent ).getDataSet( );
+			}
 		}
 		else if ( handle instanceof TabularLevelHandle )
 		{
 			dataSetHandle = OlapUtil.getHierarchyDataset( (TabularHierarchyHandle) handle.getContainer( ) );
 		}
+		addFilterToProvider( );
+	}
+
+	protected void addFilterToProvider( )
+	{
+		this.addFilter( new ExpressionFilter( ) {
+
+			public boolean select( Object parentElement, Object element )
+			{
+				if ( ExpressionFilter.CATEGORY.equals( parentElement )
+						&& ExpressionProvider.CURRENT_CUBE.equals( element ) )
+				{
+					return false;
+				}
+				if ( ExpressionFilter.CATEGORY.equals( parentElement )
+						&& ExpressionProvider.MEASURE.equals( element ) )
+				{
+					return false;
+				}
+				return true;
+			}
+		} );
 	}
 
 	protected List getCategoryList( )
