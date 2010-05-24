@@ -34,6 +34,7 @@ import org.eclipse.birt.report.designer.ui.cubebuilder.util.OlapUtil;
 import org.eclipse.birt.report.designer.ui.util.ExceptionUtil;
 import org.eclipse.birt.report.designer.ui.views.ElementAdapterManager;
 import org.eclipse.birt.report.designer.ui.views.attributes.providers.ChoiceSetFactory;
+import org.eclipse.birt.report.designer.ui.widget.ExpressionCellEditor;
 import org.eclipse.birt.report.designer.util.DEUtil;
 import org.eclipse.birt.report.model.api.ActionHandle;
 import org.eclipse.birt.report.model.api.DataSetHandle;
@@ -50,6 +51,7 @@ import org.eclipse.birt.report.model.api.elements.ReportDesignConstants;
 import org.eclipse.birt.report.model.api.elements.structures.Action;
 import org.eclipse.birt.report.model.api.elements.structures.FormatValue;
 import org.eclipse.birt.report.model.api.elements.structures.LevelAttribute;
+import org.eclipse.birt.report.model.api.elements.structures.Rule;
 import org.eclipse.birt.report.model.api.metadata.IChoice;
 import org.eclipse.birt.report.model.api.metadata.PropertyValueException;
 import org.eclipse.birt.report.model.api.olap.LevelHandle;
@@ -60,6 +62,7 @@ import org.eclipse.birt.report.model.elements.olap.Level;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.viewers.CellEditor;
+import org.eclipse.jface.viewers.ComboBoxCellEditor;
 import org.eclipse.jface.viewers.ICellModifier;
 import org.eclipse.jface.viewers.ILabelProviderListener;
 import org.eclipse.jface.viewers.IStructuredContentProvider;
@@ -68,7 +71,6 @@ import org.eclipse.jface.viewers.StructuredSelection;
 import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.viewers.TextCellEditor;
 import org.eclipse.jface.viewers.Viewer;
-import org.eclipse.jface.window.Window;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ControlEvent;
 import org.eclipse.swt.events.ControlListener;
@@ -76,8 +78,6 @@ import org.eclipse.swt.events.KeyAdapter;
 import org.eclipse.swt.events.KeyEvent;
 import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.ModifyListener;
-import org.eclipse.swt.events.MouseAdapter;
-import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.graphics.Image;
@@ -88,8 +88,10 @@ import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Group;
+import org.eclipse.swt.widgets.Item;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Table;
@@ -204,6 +206,8 @@ public class LevelPropertyDialog extends TitleAreaDialog
 	{
 		if ( input != null )
 		{
+			expressionEditor.setExpressionProvider( new CubeExpressionProvider( input ) );
+			if ( input.getLevelType( ) == null )
 			{
 				try
 				{
@@ -285,7 +289,14 @@ public class LevelPropertyDialog extends TitleAreaDialog
 		{
 			attrList.add( attrIter.next( ) );
 		}
-		dynamicViewer.setInput( attrList );
+		Display.getDefault( ).asyncExec( new Runnable( ) {
+
+			public void run( )
+			{
+				dynamicViewer.setInput( attrList );
+			}
+
+		} );
 	}
 
 	private void refreshStaticViewer( )
@@ -296,10 +307,15 @@ public class LevelPropertyDialog extends TitleAreaDialog
 		{
 			valuesList.add( valuesIter.next( ) );
 		}
+		Display.getDefault( ).asyncExec( new Runnable( ) {
 
-		staticViewer.setInput( valuesList );
-		defaultValueViewer.setInput( input );
-		checkStaticViewerButtonStatus( );
+			public void run( )
+			{
+				staticViewer.setInput( valuesList );
+				defaultValueViewer.setInput( input );
+			}
+
+		} );
 
 	}
 
@@ -495,6 +511,8 @@ public class LevelPropertyDialog extends TitleAreaDialog
 			if ( input instanceof List )
 			{
 				List list = (List) input;
+				if ( !list.contains( dummyChoice ) )
+					list.add( dummyChoice );
 				return list.toArray( );
 			}
 			return new Object[0];
@@ -685,80 +703,175 @@ public class LevelPropertyDialog extends TitleAreaDialog
 
 	};
 
-	// private ICellModifier dynamicCellModifier = new ICellModifier( ) {
-	//
-	// public boolean canModify( Object element, String property )
-	// {
-	// return true;
-	// }
-	//
-	// public Object getValue( Object element, String property )
-	// {
-	// if ( element instanceof LevelAttributeHandle )
-	// {
-	// LevelAttributeHandle handle = (LevelAttributeHandle) element;
-	// resetEditorItems( handle.getName( ) );
-	// for ( int i = 0; i < editor.getItems( ).length; i++ )
-	// if ( handle.getName( ).equals( editor.getItems( )[i] ) )
-	// return Integer.valueOf( i );
-	// }
-	// if ( element instanceof String )
-	// {
-	// resetEditorItems( );
-	// }
-	// return Integer.valueOf( -1 );
-	// }
-	//
-	// public void modify( Object element, String property, Object value )
-	// {
-	// if ( element instanceof Item )
-	// element = ( (Item) element ).getData( );
-	//
-	// if ( ( (Integer) value ).intValue( ) > -1
-	// && ( (Integer) value ).intValue( ) < editor.getItems( ).length )
-	// {
-	// if ( element instanceof LevelAttributeHandle )
-	// {
-	// LevelAttributeHandle handle = (LevelAttributeHandle) element;
-	// try
-	// {
-	// handle.setName( editor.getItems( )[( (Integer) value ).intValue( )] );
-	// if ( dataset != null )
-	// {
-	// ResultSetColumnHandle dataField = OlapUtil.getDataField( dataset,
-	// handle.getName( ) );
-	// handle.setDataType( dataField.getDataType( ) );
-	// }
-	// }
-	// catch ( SemanticException e )
-	// {
-	// ExceptionUtil.handle( e );
-	// }
-	// }
-	// else
-	// {
-	// LevelAttribute attribute = StructureFactory.createLevelAttribute( );
-	// attribute.setName( editor.getItems( )[( (Integer) value ).intValue( )] );
-	// if ( dataset != null )
-	// {
-	// ResultSetColumnHandle dataField = OlapUtil.getDataField( dataset,
-	// attribute.getName( ) );
-	// attribute.setDataType( dataField.getDataType( ) );
-	// }
-	// try
-	// {
-	// input.getPropertyHandle( ILevelModel.ATTRIBUTES_PROP )
-	// .addItem( attribute );
-	// }
-	// catch ( SemanticException e )
-	// {
-	// ExceptionUtil.handle( e );
-	// }
-	// }
-	// refreshDynamicViewer( );
-	// }
-	// }
-	// };
+	private ICellModifier dynamicCellModifier = new ICellModifier( ) {
+
+		public boolean canModify( Object element, String property )
+		{
+			return true;
+		}
+
+		public Object getValue( Object element, String property )
+		{
+			if ( element instanceof LevelAttributeHandle )
+			{
+				LevelAttributeHandle handle = (LevelAttributeHandle) element;
+				resetEditorItems( handle.getName( ) );
+				for ( int i = 0; i < editor.getItems( ).length; i++ )
+					if ( handle.getName( ).equals( editor.getItems( )[i] ) )
+						return Integer.valueOf( i );
+			}
+			if ( element instanceof String )
+			{
+				resetEditorItems( );
+			}
+			return Integer.valueOf( -1 );
+		}
+
+		public void modify( Object element, String property, Object value )
+		{
+			if ( element instanceof Item )
+				element = ( (Item) element ).getData( );
+
+			if ( ( (Integer) value ).intValue( ) > -1
+					&& ( (Integer) value ).intValue( ) < editor.getItems( ).length )
+			{
+				if ( element instanceof LevelAttributeHandle )
+				{
+					LevelAttributeHandle handle = (LevelAttributeHandle) element;
+					try
+					{
+						handle.setName( editor.getItems( )[( (Integer) value ).intValue( )] );
+						if ( dataset != null )
+						{
+							ResultSetColumnHandle dataField = OlapUtil.getDataField( dataset,
+									handle.getName( ) );
+							handle.setDataType( dataField.getDataType( ) );
+						}
+					}
+					catch ( SemanticException e )
+					{
+						ExceptionUtil.handle( e );
+					}
+				}
+				else
+				{
+					LevelAttribute attribute = StructureFactory.createLevelAttribute( );
+					attribute.setName( editor.getItems( )[( (Integer) value ).intValue( )] );
+					if ( dataset != null )
+					{
+						ResultSetColumnHandle dataField = OlapUtil.getDataField( dataset,
+								attribute.getName( ) );
+						attribute.setDataType( dataField.getDataType( ) );
+					}
+					try
+					{
+						input.getPropertyHandle( ILevelModel.ATTRIBUTES_PROP )
+								.addItem( attribute );
+					}
+					catch ( SemanticException e )
+					{
+						ExceptionUtil.handle( e );
+					}
+				}
+				refreshDynamicViewer( );
+			}
+		}
+	};
+
+	private ICellModifier staticCellModifier = new ICellModifier( ) {
+
+		public boolean canModify( Object element, String property )
+		{
+			if ( property.equals( Prop_Name ) )
+			{
+				return true;
+			}
+			else
+			{
+				if ( element != dummyChoice )
+					return true;
+				else
+					return false;
+			}
+		}
+
+		public Object getValue( Object element, String property )
+		{
+			if ( property.equals( Prop_Name ) )
+			{
+				if ( element != dummyChoice )
+				{
+					if ( element instanceof RuleHandle )
+						return ( (RuleHandle) element ).getDisplayExpression( );
+				}
+				return ""; //$NON-NLS-1$
+			}
+			else
+			{
+				if ( element != dummyChoice )
+				{
+					if ( element instanceof RuleHandle )
+					{
+						String result = ( (RuleHandle) element ).getRuleExpression( );
+						return result == null ? "" : result; //$NON-NLS-1$
+					}
+				}
+				return ""; //$NON-NLS-1$
+			}
+		}
+
+		public void modify( Object element, String property, Object value )
+		{
+			if ( element instanceof Item )
+			{
+				element = ( (Item) element ).getData( );
+			}
+			if ( property.equals( Prop_Name )
+					&& !( value.toString( ).trim( ).equals( "" ) || value.equals( dummyChoice ) ) ) //$NON-NLS-1$
+			{
+				if ( element instanceof RuleHandle )
+				{
+					( (RuleHandle) element ).setDisplayExpression( value.toString( ) );
+				}
+				else
+				{
+					Rule rule = StructureFactory.createRule( );
+					rule.setProperty( Rule.DISPLAY_EXPRE_MEMBER,
+							value.toString( ) );
+					rule.setProperty( Rule.RULE_EXPRE_MEMBER, "" ); //$NON-NLS-1$
+					try
+					{
+						input.getPropertyHandle( ILevelModel.STATIC_VALUES_PROP )
+								.addItem( rule );
+					}
+					catch ( SemanticException e )
+					{
+						ExceptionUtil.handle( e );
+					}
+				}
+				refreshStaticViewer( );
+			}
+			else if ( property.equals( prop_Expression ) )
+			{
+				if ( element instanceof RuleHandle )
+				{
+					if ( element != dummyChoice
+							&& !( value.toString( ).trim( ).equals( "" ) ) ) //$NON-NLS-1$
+					{
+
+						( (RuleHandle) element ).setRuleExpression( value.toString( ) );
+
+					}
+					else
+					{
+						( (RuleHandle) element ).setRuleExpression( null );
+					}
+					refreshStaticViewer( );
+				}
+			}
+
+		}
+	};
 
 	private ICellModifier defaultValueCellModifier = new ICellModifier( ) {
 
@@ -813,7 +926,6 @@ public class LevelPropertyDialog extends TitleAreaDialog
 		GridLayout layout = new GridLayout( );
 		layout.marginWidth = 0;
 		layout.marginHeight = 0;
-		layout.numColumns = 2;
 		contents.setLayout( layout );
 		GridData data = new GridData( GridData.FILL_HORIZONTAL );
 		contents.setLayoutData( data );
@@ -823,14 +935,12 @@ public class LevelPropertyDialog extends TitleAreaDialog
 		layout.numColumns = 3;
 		groupGroup.setLayout( layout );
 
-		GridData gd = new GridData( GridData.FILL_HORIZONTAL );
-		gd.horizontalSpan = 2;
-		groupGroup.setLayoutData( gd );
+		groupGroup.setLayoutData( new GridData( GridData.FILL_HORIZONTAL ) );
 
 		Label nameLabel = new Label( groupGroup, SWT.NONE );
 		nameLabel.setText( Messages.getString( "LevelPropertyDialog.Name" ) ); //$NON-NLS-1$
 		nameText = new Text( groupGroup, SWT.BORDER );
-		gd = new GridData( GridData.FILL_HORIZONTAL );
+		GridData gd = new GridData( GridData.FILL_HORIZONTAL );
 		gd.horizontalSpan = 2;
 		nameText.setLayoutData( gd );
 		nameText.addModifyListener( new ModifyListener( ) {
@@ -937,7 +1047,6 @@ public class LevelPropertyDialog extends TitleAreaDialog
 				| SWT.HORIZONTAL );
 		gd = new GridData( GridData.FILL_BOTH );
 		gd.heightHint = 150;
-		gd.verticalSpan = 3;
 		dynamicTable.setLayoutData( gd );
 		dynamicTable.setLinesVisible( true );
 		dynamicTable.setHeaderVisible( true );
@@ -948,19 +1057,28 @@ public class LevelPropertyDialog extends TitleAreaDialog
 			{
 				if ( e.keyCode == SWT.DEL )
 				{
-					deleteDynamicAttribute( );
+					int itemCount = dynamicTable.getItemCount( );
+					if ( dynamicSelectIndex == itemCount )
+					{
+						return;
+					}
+					if ( dynamicSelectIndex == itemCount - 1 )
+					{
+						dynamicSelectIndex--;
+					}
+					try
+					{
+						handleDynamicDelEvent( );
+					}
+					catch ( Exception e1 )
+					{
+						ExceptionUtil.handle( e1 );
+					}
+					refreshDynamicViewer( );
 				}
 			}
 		} );
-		
-		dynamicTable.addMouseListener( new MouseAdapter( ) {
 
-			public void mouseDoubleClick( MouseEvent e )
-			{
-				handleDynamicTableEditEvent( );
-			}
-		} );
-		
 		dynamicViewer = new TableViewer( dynamicTable );
 		String[] columns = new String[]{
 				" ", Messages.getString( "LevelPropertyDialog.Label.Attribute" ) //$NON-NLS-1$ //$NON-NLS-2$
@@ -981,91 +1099,17 @@ public class LevelPropertyDialog extends TitleAreaDialog
 		dynamicViewer.setColumnProperties( new String[]{
 				"", prop_Attribute //$NON-NLS-1$
 		} );
+		editor = new ComboBoxCellEditor( dynamicViewer.getTable( ),
+				attributeItems,
+				SWT.READ_ONLY );
+		CellEditor[] cellEditors = new CellEditor[]{
+				null, editor
+		};
+		dynamicViewer.setCellEditors( cellEditors );
 
 		dynamicViewer.setContentProvider( contentProvider );
 		dynamicViewer.setLabelProvider( dynamicLabelProvider );
-
-		Button dynamicAddButton = new Button( contents, SWT.PUSH );
-		dynamicAddButton.setText( Messages.getString("LevelPropertyDialog.DynamicTable.Button.Add") ); //$NON-NLS-1$
-		gd = new GridData( GridData.FILL_VERTICAL );
-		gd.verticalAlignment = SWT.END;
-		gd.horizontalAlignment = SWT.FILL;
-		dynamicAddButton.setLayoutData( gd );
-		dynamicAddButton.setEnabled( true );
-
-		dynamicAddButton.addSelectionListener( new SelectionAdapter( ) {
-
-			public void widgetSelected( SelectionEvent e )
-			{
-				resetEditorItems( );
-				LevelDynamicAttributeDialog dialog = new LevelDynamicAttributeDialog( Messages.getString("LevelPropertyDialog.DynamicAttributeDialog.Title.New") ); //$NON-NLS-1$
-				dialog.setInput( dynamicMemeberItems );
-				if ( dialog.open( ) == Window.OK )
-				{
-					LevelAttribute attribute = StructureFactory.createLevelAttribute( );
-					attribute.setName( (String) dialog.getResult( ) );
-					if ( dataset != null )
-					{
-						ResultSetColumnHandle dataField = OlapUtil.getDataField( dataset,
-								attribute.getName( ) );
-						attribute.setDataType( dataField.getDataType( ) );
-					}
-					try
-					{
-						input.getPropertyHandle( ILevelModel.ATTRIBUTES_PROP )
-								.addItem( attribute );
-					}
-					catch ( SemanticException e1 )
-					{
-						ExceptionUtil.handle( e1 );
-					}
-					refreshDynamicViewer( );
-				}
-				if ( dynamicTable.getItemCount( ) > 0 )
-				{
-					dynamicSelectIndex = dynamicTable.getItemCount( ) - 1;
-					dynamicTable.select( dynamicSelectIndex );
-					checkDynamicViewerButtonStatus( );
-				}
-			}
-		} );
-
-		dynamicEditButton = new Button( contents, SWT.PUSH );
-		dynamicEditButton.setText( Messages.getString("LevelPropertyDialog.DynamicTable.Button.Edit") ); //$NON-NLS-1$
-		gd = new GridData( );
-		gd.horizontalAlignment = SWT.FILL;
-		dynamicEditButton.setLayoutData( gd );
-		dynamicEditButton.setEnabled( false );
-
-		dynamicEditButton.addSelectionListener( new SelectionAdapter( ) {
-
-			public void widgetSelected( SelectionEvent e )
-			{
-				handleDynamicTableEditEvent( );
-			}
-		} );
-
-		dynamicRemoveButton = new Button( contents, SWT.PUSH );
-		dynamicRemoveButton.setText( Messages.getString("LevelPropertyDialog.DynamicTable.Button.Remove") ); //$NON-NLS-1$
-		gd = new GridData( GridData.FILL_VERTICAL );
-		gd.horizontalAlignment = SWT.FILL;
-		gd.verticalAlignment = SWT.BEGINNING;
-		dynamicRemoveButton.setLayoutData( gd );
-		dynamicRemoveButton.setEnabled( false );
-		dynamicRemoveButton.addSelectionListener( new SelectionAdapter( ) {
-
-			public void widgetSelected( SelectionEvent e )
-			{
-				deleteDynamicAttribute( );
-			}
-		} );
-		dynamicTable.addSelectionListener( new SelectionAdapter( ) {
-
-			public void widgetSelected( SelectionEvent e )
-			{
-				checkDynamicViewerButtonStatus( );
-			}
-		} );
+		dynamicViewer.setCellModifier( dynamicCellModifier );
 
 		return contents;
 	}
@@ -1236,8 +1280,6 @@ public class LevelPropertyDialog extends TitleAreaDialog
 		resetEditorItems( null );
 	}
 
-	private String[] dynamicMemeberItems;
-
 	private void resetEditorItems( String name )
 	{
 		List list = new ArrayList( );
@@ -1257,7 +1299,7 @@ public class LevelPropertyDialog extends TitleAreaDialog
 		}
 		String[] temps = new String[list.size( )];
 		list.toArray( temps );
-		dynamicMemeberItems = temps;
+		editor.setItems( temps );
 	}
 
 	protected void handleDynamicDelEvent( )
@@ -1409,6 +1451,7 @@ public class LevelPropertyDialog extends TitleAreaDialog
 	private TableViewer dynamicViewer;
 	private Text nameText;
 
+	private ComboBoxCellEditor editor;
 	private TableViewer staticViewer;
 	private Composite staticArea;
 	private Button dynamicButton;
@@ -1420,6 +1463,7 @@ public class LevelPropertyDialog extends TitleAreaDialog
 	private static final String Prop_DefaultValue = "DefaultValue";//$NON-NLS-1$
 	private static final String prop_Tooltip = "Tooltip";//$NON-NLS-1$
 	private Table dynamicTable;
+	private ExpressionCellEditor expressionEditor;
 	private Combo staticDataTypeCombo;
 	private Text staticNameText;
 	private Combo fieldCombo;
@@ -1434,12 +1478,7 @@ public class LevelPropertyDialog extends TitleAreaDialog
 	private IDialogHelper staticLevelHelper;
 	private IDialogHelper staticMemberHelper;
 	private IDialogHelper dynamicFormatHelper;
-	private IDialogHelper staticFormatHelper;
-	private Table staticTable;
-	private Button staticEditButton;
-	private Button staticRemoveButton;
-	private Button dynamicEditButton;
-	private Button dynamicRemoveButton;;
+	private IDialogHelper staticFormatHelper;;
 
 	protected Composite createStaticArea( Composite parent )
 	{
@@ -1488,18 +1527,16 @@ public class LevelPropertyDialog extends TitleAreaDialog
 		staticFormatHelper = createFormatPart( properties );
 		Group contents = new Group( container, SWT.NONE );
 		layout = new GridLayout( );
-		layout.numColumns = 2;
 		contents.setLayout( layout );
 		contents.setLayoutData( new GridData( GridData.FILL_HORIZONTAL ) );
 
-		staticTable = new Table( contents, SWT.SINGLE
+		final Table staticTable = new Table( contents, SWT.SINGLE
 				| SWT.FULL_SELECTION
 				| SWT.BORDER
 				| SWT.VERTICAL
 				| SWT.HORIZONTAL );
 		gd = new GridData( GridData.FILL_BOTH );
 		gd.heightHint = 150;
-		gd.verticalSpan = 3;
 		staticTable.setLayoutData( gd );
 		staticTable.setLinesVisible( true );
 		staticTable.setHeaderVisible( true );
@@ -1510,18 +1547,28 @@ public class LevelPropertyDialog extends TitleAreaDialog
 			{
 				if ( e.keyCode == SWT.DEL )
 				{
-					deleteStaticAttribute( );
+					int itemCount = staticTable.getItemCount( );
+					if ( staticSelectIndex == itemCount )
+					{
+						return;
+					}
+					if ( staticSelectIndex == itemCount - 1 )
+					{
+						staticSelectIndex--;
+					}
+					try
+					{
+						handleStaticDelEvent( );
+					}
+					catch ( Exception e1 )
+					{
+						ExceptionUtil.handle( e1 );
+					}
+					refreshStaticViewer( );
 				}
 			}
 		} );
 
-		staticTable.addMouseListener( new MouseAdapter( ) {
-
-			public void mouseDoubleClick( MouseEvent e )
-			{
-				handleStaticTableEditEvent( );
-			}
-		} );
 		staticViewer = new TableViewer( staticTable );
 		String[] columns = new String[]{
 				"", //$NON-NLS-1$
@@ -1565,72 +1612,16 @@ public class LevelPropertyDialog extends TitleAreaDialog
 				LevelPropertyDialog.prop_Expression
 		} );
 
+		expressionEditor = new ExpressionCellEditor( staticTable );
+		CellEditor[] cellEditors = new CellEditor[]{
+				null, new TextCellEditor( staticTable ), expressionEditor
+
+		};
+		staticViewer.setCellEditors( cellEditors );
+
 		staticViewer.setContentProvider( contentProvider );
 		staticViewer.setLabelProvider( staticLabelProvider );
-
-		Button staticAddButton = new Button( contents, SWT.PUSH );
-		staticAddButton.setText( Messages.getString("LevelPropertyDialog.StaticTable.Button.Add") ); //$NON-NLS-1$
-		gd = new GridData( GridData.FILL_VERTICAL );
-		gd.verticalAlignment = SWT.END;
-		gd.horizontalAlignment = SWT.FILL;
-		staticAddButton.setLayoutData( gd );
-		staticAddButton.setEnabled( true );
-
-		staticAddButton.addSelectionListener( new SelectionAdapter( ) {
-
-			public void widgetSelected( SelectionEvent e )
-			{
-				LevelStaticAttributeDialog dialog = new LevelStaticAttributeDialog( Messages.getString("LevelPropertyDialog.StaticAttributeDialog.Title.New") ); //$NON-NLS-1$
-				dialog.setInput( input );
-				if ( dialog.open( ) == Window.OK )
-				{
-					refreshStaticViewer( );
-				}
-				if ( staticTable.getItemCount( ) > 0 )
-				{
-					staticSelectIndex = staticTable.getItemCount( ) - 1;
-					staticTable.select( staticSelectIndex );
-					checkStaticViewerButtonStatus( );
-				}
-			}
-		} );
-
-		staticEditButton = new Button( contents, SWT.PUSH );
-		staticEditButton.setText( Messages.getString("LevelPropertyDialog.StaticTable.Button.Edit") ); //$NON-NLS-1$
-		gd = new GridData( );
-		gd.horizontalAlignment = SWT.FILL;
-		staticEditButton.setLayoutData( gd );
-		staticEditButton.setEnabled( false );
-
-		staticEditButton.addSelectionListener( new SelectionAdapter( ) {
-
-			public void widgetSelected( SelectionEvent e )
-			{
-				handleStaticTableEditEvent( );
-			}
-		} );
-
-		staticRemoveButton = new Button( contents, SWT.PUSH );
-		staticRemoveButton.setText( Messages.getString("LevelPropertyDialog.StaticTable.Button.Remove") ); //$NON-NLS-1$
-		gd = new GridData( GridData.FILL_VERTICAL );
-		gd.horizontalAlignment = SWT.FILL;
-		gd.verticalAlignment = SWT.BEGINNING;
-		staticRemoveButton.setLayoutData( gd );
-		staticRemoveButton.setEnabled( false );
-		staticRemoveButton.addSelectionListener( new SelectionAdapter( ) {
-
-			public void widgetSelected( SelectionEvent e )
-			{
-				deleteStaticAttribute( );
-			}
-		} );
-		staticTable.addSelectionListener( new SelectionAdapter( ) {
-
-			public void widgetSelected( SelectionEvent e )
-			{
-				checkStaticViewerButtonStatus( );
-			}
-		} );
+		staticViewer.setCellModifier( staticCellModifier );
 
 		defaultValueTable = new Table( contents, SWT.SINGLE
 				| SWT.FULL_SELECTION
@@ -1661,7 +1652,7 @@ public class LevelPropertyDialog extends TitleAreaDialog
 				LevelPropertyDialog.prop_Tooltip
 		} );
 
-		CellEditor[] cellEditors = new CellEditor[]{
+		cellEditors = new CellEditor[]{
 				null, new TextCellEditor( defaultValueTable ), null
 		};
 
@@ -1673,58 +1664,6 @@ public class LevelPropertyDialog extends TitleAreaDialog
 
 		return container;
 
-	}
-
-	protected void checkStaticViewerButtonStatus( )
-	{
-		if ( staticTable != null && !staticTable.isDisposed( ) )
-		{
-			if ( staticTable.getSelectionCount( ) > 0 )
-			{
-				setButtonEnabled( staticEditButton, true );
-				setButtonEnabled( staticRemoveButton, true );
-			}
-			else
-			{
-				setButtonEnabled( staticEditButton, false );
-				setButtonEnabled( staticRemoveButton, false );
-			}
-		}
-		else
-		{
-			setButtonEnabled( staticEditButton, false );
-			setButtonEnabled( staticRemoveButton, false );
-		}
-	}
-
-	protected void checkDynamicViewerButtonStatus( )
-	{
-		if ( dynamicTable != null && !dynamicTable.isDisposed( ) )
-		{
-			if ( dynamicTable.getSelectionCount( ) > 0 )
-			{
-				setButtonEnabled( dynamicEditButton, true );
-				setButtonEnabled( dynamicRemoveButton, true );
-			}
-			else
-			{
-				setButtonEnabled( dynamicEditButton, false );
-				setButtonEnabled( dynamicRemoveButton, false );
-			}
-		}
-		else
-		{
-			setButtonEnabled( dynamicEditButton, false );
-			setButtonEnabled( dynamicRemoveButton, false );
-		}
-	}
-
-	private void setButtonEnabled( Button button, boolean enabled )
-	{
-		if ( button != null && !button.isDisposed( ) )
-		{
-			button.setEnabled( enabled );
-		}
 	}
 
 	public void setInput( TabularLevelHandle level )
@@ -1836,101 +1775,5 @@ public class LevelPropertyDialog extends TitleAreaDialog
 		return new Point( Math.max( convertHorizontalDLUsToPixels( 400 ),
 				shellSize.x ), Math.max( convertVerticalDLUsToPixels( 350 ),
 				shellSize.y ) );
-	}
-
-	private void deleteStaticAttribute( )
-	{
-		if ( staticTable.getSelectionCount( ) > 0 )
-		{
-			staticSelectIndex = staticTable.getSelectionIndex( );
-			try
-			{
-				handleStaticDelEvent( );
-			}
-			catch ( Exception e1 )
-			{
-				ExceptionUtil.handle( e1 );
-			}
-			refreshStaticViewer( );
-			int itemCount = staticTable.getItemCount( );
-			if ( staticSelectIndex >= itemCount )
-				staticSelectIndex = itemCount - 1;
-			if ( staticSelectIndex >= 0 )
-				staticTable.select( staticSelectIndex );
-			checkStaticViewerButtonStatus( );
-		}
-	}
-
-	private void deleteDynamicAttribute( )
-	{
-		if ( dynamicTable.getSelectionCount( ) > 0 )
-		{
-			dynamicSelectIndex = dynamicTable.getSelectionIndex( );
-			try
-			{
-				handleDynamicDelEvent( );
-			}
-			catch ( Exception e1 )
-			{
-				ExceptionUtil.handle( e1 );
-			}
-			refreshDynamicViewer( );
-			int itemCount = dynamicTable.getItemCount( );
-			if ( dynamicSelectIndex >= itemCount )
-				dynamicSelectIndex = itemCount - 1;
-			if ( dynamicSelectIndex >= 0 )
-				dynamicTable.select( dynamicSelectIndex );
-			checkDynamicViewerButtonStatus( );
-		}
-	}
-
-	private void handleStaticTableEditEvent( )
-	{
-		if ( ( (StructuredSelection) staticViewer.getSelection( ) ).getFirstElement( ) instanceof RuleHandle )
-		{
-			staticSelectIndex = staticTable.getSelectionIndex( );
-			LevelStaticAttributeDialog dialog = new LevelStaticAttributeDialog( Messages.getString("LevelPropertyDialog.StaticAttributeDialog.Title.Edit") ); //$NON-NLS-1$
-			dialog.setInput( input,
-					(RuleHandle) ( (StructuredSelection) staticViewer.getSelection( ) ).getFirstElement( ) );
-			if ( dialog.open( ) == Window.OK )
-			{
-				refreshStaticViewer( );
-			}
-			staticTable.select( staticSelectIndex );
-			checkStaticViewerButtonStatus( );
-		}
-	}
-
-	private void handleDynamicTableEditEvent( )
-	{
-		if ( ( (StructuredSelection) dynamicViewer.getSelection( ) ).getFirstElement( ) instanceof LevelAttributeHandle )
-		{
-
-			LevelAttributeHandle handle = (LevelAttributeHandle) ( (StructuredSelection) dynamicViewer.getSelection( ) ).getFirstElement( );
-			resetEditorItems( handle.getName( ) );
-			dynamicSelectIndex = dynamicTable.getSelectionIndex( );
-			LevelDynamicAttributeDialog dialog = new LevelDynamicAttributeDialog( Messages.getString("LevelPropertyDialog.DynamicAttributeDialog.Title.Edit") ); //$NON-NLS-1$
-			dialog.setInput( dynamicMemeberItems, handle.getName( ) );
-			if ( dialog.open( ) == Window.OK )
-			{
-				try
-				{
-					handle.setName( (String) dialog.getResult( ) );
-					if ( dataset != null )
-					{
-						ResultSetColumnHandle dataField = OlapUtil.getDataField( dataset,
-								handle.getName( ) );
-						handle.setDataType( dataField.getDataType( ) );
-					}
-				}
-				catch ( SemanticException e )
-				{
-					ExceptionUtil.handle( e );
-				}
-				refreshDynamicViewer( );
-			}
-			dynamicTable.select( dynamicSelectIndex );
-			checkDynamicViewerButtonStatus( );
-		}
 	}
 }
